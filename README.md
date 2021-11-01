@@ -18,3 +18,13 @@ We are using 8080 port for communication between our remote node and local node 
 2. `echo $CARDANO_NODE_SOCKET_PATH` points to the correct location of socket
 
 P.S: refer to the `./scripts/run_socat.sh` to starting socat locally.
+
+
+Sending ADA from one wallet to other wallet
+===========================================
+
+```
+python run_transactions.py --input_address addr_test1vqe6pyeqq66nffkku7ra8xhss97nzltclgnhn20u7xyhzwcu5zzvt --pay addr_test1vqjx7cmy52973y868fvesd7tjuvj9njxqgzen5vyvs9cw0qqpcqjp=1000000 --signing_key keys/payment2.skey
+```
+
+This would send ADA as listed in `--pay` argument from wallet in `--input_address`.
