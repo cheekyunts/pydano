@@ -94,9 +94,16 @@ class TransactionConfig:
         return command_args
 
     def mint_args(self, minting_script_file):
-        command_args = []
+        command_args = ['--mint']
+        mint_args = ''
+        first_transaction = True
         for i in self.mints:
-            command_args.append(f'--mint=1 {i}')
+            if first_transaction:
+                first_transaction = False
+            else:
+                mint_args += '+'
+            mint_args += f'1 {i}'
+        command_args.append(mint_args)
         command_args.append("--minting-script-file")
         command_args.append(minting_script_file)
         script = json.load(open(minting_script_file, 'r'))
