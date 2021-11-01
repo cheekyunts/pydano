@@ -2,6 +2,7 @@ import os
 import uuid
 from collections import defaultdict
 import logging
+import json
 
 from pydano.cardano_cli import CardanoCli
 from pydano.cardano_temp import tempdir
@@ -18,6 +19,7 @@ class TransactionConfig:
     def __init__(self, change_address: str):
         self.input_utxos = []
         self.output_txs = defaultdict(list)
+        self.mints = []
         self.change_address = change_address
 
 
@@ -61,6 +63,15 @@ class TransactionConfig:
         self.output_txs[out_address].append(out)
         return len(self.output_txs)
 
+    def add_mint(self, out_address: str, policyid: str, token_name: str):
+        mint_token_name = f"{policyid}.{token_name}"
+        out = {"out_address": out_address,
+                "name": mint_token_name,
+                "quantity": 1
+              }
+        self.output_txs[out_address].append(out)
+        self.mints.append(mint_token_name)
+
     def input_utxos_args(self):
         command_args = []
         assert len(self.input_utxos) > 0
@@ -80,6 +91,18 @@ class TransactionConfig:
             for asset in out_assets[1:]:
                 tx_out_config += '+' + str(asset['quantity']) + ' ' + str(asset['name'])
             command_args.append(out_address+tx_out_config)
+        return command_args
+
+    def mint_args(self, minting_script_file):
+        command_args = []
+        for i in self.mints:
+            command_args.append(f'--mint=1 {i}')
+        command_args.append("--minting-script-file")
+        command_args.append(minting_script_file)
+        script = json.load(open(minting_script_file, 'r'))
+        invalid_hereafter_slot = script['scripts'][0]['slot']
+        command_args.append("--invalid-hereafter")
+        command_args.append(str(invalid_hereafter_slot))
         return command_args
 
 
@@ -115,12 +138,10 @@ class BuildTransaction(Transaction):
 
     @property
     def base_command(self):
-        return ["cardano-cli", "transaction"]
+        return ["cardano-cli", "transaction", "build", "--alonzo-era"]
 
     def build_base_transaction(self):
         command = self.base_command
-        command.append("build")
-        command.append("--alonzo-era")
         command = self.apply_blockchain(command)
         command.extend(self.transaction_config.input_utxos_args())
         command.extend(self.transaction_config.out_tx_args())
@@ -144,10 +165,10 @@ class BuildTransaction(Transaction):
 
 class SignTransaction(Transaction):
 
-    def __init__(self, build_transaction: BuildTransaction, signing_key: str):
-        super().__init__(build_transaction.testnet)
-        self.raw_transaction = build_transaction.transaction_file
-        self.transaction_uuid = build_transaction.transaction_uuid
+    def __init__(self, transaction: Transaction, signing_key: str):
+        super().__init__(transaction.testnet)
+        self.raw_transaction = transaction.transaction_file
+        self.transaction_uuid = transaction.transaction_uuid
         self.signing_key = signing_key
 
     @property
