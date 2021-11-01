@@ -1,3 +1,5 @@
+import logging
+
 from pydano.query.base import Query
 from pydano.cardano_temp import protocol_params_file
 
@@ -17,6 +19,6 @@ class ProtocolParam(Query):
         protocol_file = protocol_params_file()
         updated_command.append("--out-file")
         updated_command.append(protocol_file)
-        print("Running command", updated_command)
+        logging.debug(f"Running command: {updated_command}")
         self.run_command(updated_command)
         return protocol_file

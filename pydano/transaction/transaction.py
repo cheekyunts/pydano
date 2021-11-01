@@ -1,6 +1,7 @@
 import os
 import uuid
 from collections import defaultdict
+import logging
 
 from pydano.cardano_cli import CardanoCli
 from pydano.cardano_temp import tempdir
@@ -27,7 +28,8 @@ class TransactionConfig:
     def add_input_utxos(self, addr: str):
         utxo = UTXOs()
         utxos, totalLovelace = utxo.utxos(addr)
-        print(totalLovelace, utxos)
+        logging.info(f"Total amount available at addres {addr} is {totalLovelace}")
+        logging.debug(f"All UTXOs at addres {utxos}")
         for i in utxos:
             self.add_tx_in(**i)
 
@@ -102,7 +104,7 @@ class Transaction(CardanoCli):
     """
     def run_transaction(self):
         self.prepare_transaction()
-        print(' '.join(self.prepared_transaction))
+        logging.debug(f"Running transaction: {' '.join(self.prepared_transaction)}")
         return self.run_command(self.prepared_transaction)
 
 class BuildTransaction(Transaction):

@@ -1,3 +1,5 @@
+import logging
+
 from pydano.query.base import Query
 from pydano.cardano_temp import protocol_params_file
 
@@ -23,6 +25,6 @@ class UTXOs(Query):
         updated_command = self.apply_blockchain(current_command)
         updated_command.append("--address")
         updated_command.append(address)
-        print("Running command", updated_command)
+        logging.debug(f"Running command: {updated_command}")
         called_process = self.run_command(updated_command)
         return self.process_stdout(called_process.stdout)

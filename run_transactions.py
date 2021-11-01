@@ -2,6 +2,8 @@
 import os
 import argparse
 from pydano.transaction.transaction import TransactionConfig, BuildTransaction, SignTransaction, SubmitTransaction
+import logging
+
 
 # create a keyvalue class
 class keyvalue(argparse.Action):
@@ -25,7 +27,10 @@ parser.add_argument("--signing_key",
                     help="Signing Key",
                     type=str,
                     default=None)
-
+parser.add_argument("--log_level",
+                     help="Set log level to",
+                     type=str,
+                     default="INFO")
 parser.add_argument("--node_socket",
                     help="Location of node socket to talk to",
                     type=str,
@@ -35,6 +40,8 @@ parser.add_argument("--pay", help="list of addresses and amount of lovelaces to 
                     nargs='*', 
                     action = keyvalue)
 args = parser.parse_args()
+
+logging.getLogger().setLevel(args.log_level)
 
 if not args.input_address:
     raise ValueError("Except to have input_address to do transaction")
