@@ -5,6 +5,11 @@ class ProtocolParam(Query):
 
     """This performs the query for protocol parameters"""
 
+    """
+    protocol_params: This queries for current protocol parameter file
+                     and return location of the file to be used in other requests.
+        @returns location of file containing current parameter file.
+    """
     def protocol_params(self):
         current_command = self.base_command
         current_command.append("protocol-parameters")

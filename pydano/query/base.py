@@ -9,7 +9,7 @@ class Query(CardanoCli):
        protocol parameters or utxos for assets and sums.
 
     """
-    def __init__(self, testnet: bool = False):
+    def __init__(self, testnet: bool = True):
         super().__init__(testnet)
    
     @property

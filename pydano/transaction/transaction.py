@@ -1,10 +1,21 @@
-class Transaction:
+import os
+import uuid
+from collections import defaultdict
 
-    def __init__(self, signing_key: str, testnet: bool = True):
-        self.signing_key = signing_key
+from pydano.cardano_cli import CardanoCli
+from pydano.cardano_temp import tempdir
+from pydano.query.protocol_param import ProtocolParam
+
+class TransactionConfig:
+    """
+        This class is responsible to hold input and output utxos
+        which is passed around the transaction processing fees.
+    """
+
+    def __init__(self, change_address: str):
         self.input_utxos = []
-        self.output_txs = []
-        self.testnet = True
+        self.output_txs = defaultdict(list)
+        self.change_address = change_address
 
     """
     add_input_utxo: This will add a new input utxo to the transaction.
@@ -15,8 +26,8 @@ class Transaction:
     @params:
         input_utxo: utxo to add as input to the transaction.
     """
-    def add_tx_in(self, input_utxo: str):
-        self.input_utxos.append(input_utxo)
+    def add_tx_in(self, input_utxo: str, utxo_index: int):
+        self.input_utxos.append({'utxo_hash': input_utxo, 'utxo_index': utxo_index})
         return len(self.input_utxos)
 
     """
@@ -31,64 +42,127 @@ class Transaction:
                 'name': asset_name,
                 'quantity': asset_quantity
                 }
-        self.output_txs.append(out)
+        self.output_txs[out_address].append(out)
         return len(self.output_txs)
 
-    """
-    get_protocol_parameters: This queries for current protocol parameter file
-                             and return location of the file to be used in other requests.
-        @returns location of file containing current parameter file.
-    """
-    def get_protocol_parameters(self) -> str:
-        return None
+    def input_utxos_args(self):
+        command_args = []
+        assert len(self.input_utxos) > 0
+        for utxo in self.input_utxos:
+            command_args.append("--tx-in")
+            command_args.append(f"{utxo['utxo_hash']}#{utxo['utxo_index']}")
+        return command_args
+
+    def out_tx_args(self):
+        command_args = []
+        for out_address, out_assets in self.output_txs.items():
+            command_args.append("--tx-out")
+            assert len(out_assets) > 0
+            assert out_assets[0]['name'].lower() == 'lovelace'
+            tx_out_config = ""
+            tx_out_config += '+' + str(out_assets[0]['quantity'])
+            for asset in out_assets[1:]:
+                tx_out_config += '+' + str(asset['quantity']) + ' ' + str(asset['name'])
+            command_args.append(out_address+tx_out_config)
+        return command_args
+
+
+class Transaction(CardanoCli):
+
+    def __init__(self, transaction_config: TransactionConfig, testnet: bool = True):
+        self.transaction_config = transaction_config
+        self.transaction_uuid = str(uuid.uuid4())
+        super().__init__(testnet)
 
     """
     prepare_raw_transaction: Prepare raw transaction mostly to calculate block chain fees
         @returns return the file location, which contains draft transaction to calculate fees.
     """
-    def prepare_raw_transaction(self) -> str:
-        return None
+    def prepare_transaction(self) -> str:
+        self.prepared_transaction = ""
+        pass
 
     """
-    calc_min_fees: Take the protocol parameter file and draft transaction.
-        @return: fees required by the blockchain to perform this transaction
+    run_transaction: This actually calls the prepare_transaction to prepare command
+    and run it using subprocess
     """
-    def calc_min_fees(self, tx_draft: str, protocol_file: str) -> int:
-        return None
-    
-    """
-    prepare_final_transaction: This gets the final transaction accounting for all transactions and fees
-    """
-    def prepare_final_transaction(self, min_fees: int) -> str:
-        return None
+    def run_transaction(self):
+        self.prepare_transaction()
+        print(' '.join(self.prepared_transaction))
+        return self.run_command(self.prepared_transaction)
 
-    """
-    Signs the final transaction and returns path for signed transaction
-    """
-    def sign_transaction(self, tx_final: str) -> str:
-        return None
+class BuildTransaction(Transaction):
 
-    """
-    Submits the transaction to the blockchain
-    """
-    def submit_transaction(self, tx_signed: str) -> str:
-        return None
+    def __init__(self, transaction_config: TransactionConfig, testnet: bool = True):
+        super().__init__(transaction_config, testnet)
+        self.protocol_file = ProtocolParam(testnet).protocol_params()
 
-    """
-    execute: This performs the whole flow of executing transation end-to-end
-             when only utxo and expected output are returned
-    """
-    def execute(self):
-        protocol_file = self.get_protocol_parameters()
-        tx_draft = self.prepare_raw_transaction()
-        min_fees = self.calc_min_fees(tx_draft, protocol_file)
-        tx_final = self.prepare_final_transaction(min_fees)
-        tx_signed = self.sign_transaction(tx_final)
-        self.submit_transaction(tx_signed)
-        return True
+    @property
+    def base_command(self):
+        return ["cardano-cli", "transaction"]
 
+    def build_base_transaction(self):
+        command = self.base_command
+        command.append("build")
+        command.append("--alonzo-era")
+        command = self.apply_blockchain(command)
+        command.extend(self.transaction_config.input_utxos_args())
+        command.extend(self.transaction_config.out_tx_args())
+        return command
 
-class CardanoCLITransactions(Transaction):
-    def get_protocol_file(self):
+    def build_output_file(self, command, version='draft'):
+        command.append("--out-file")
+        transaction_file = os.path.join(tempdir.name, f"{self.transaction_uuid}.{version}")
+        self.transaction_file = transaction_file
+        command.append(transaction_file)
+        return command
 
+    def prepare_transaction(self):
+        base_transaction = self.build_base_transaction()
+        base_transaction.append('--change-address')
+        base_transaction.append(self.transaction_config.change_address)
+        base_transaction.append("--protocol-params-file")
+        base_transaction.append(self.protocol_file)
+        complete_trans =  self.build_output_file(base_transaction)
+        self.prepared_transaction =  complete_trans
 
+class SignTransaction(Transaction):
+
+    def __init__(self, build_transaction: BuildTransaction, signing_key: str):
+        super().__init__(build_transaction.testnet)
+        self.raw_transaction = build_transaction.transaction_file
+        self.transaction_uuid = build_transaction.transaction_uuid
+        self.signing_key = signing_key
+
+    @property
+    def base_command(self):
+        return ["cardano-cli", "transaction", "sign"]
+
+    def prepare_transaction(self):
+        base_transaction = self.base_command
+        base_transaction.append("--tx-body-file")
+        base_transaction.append(self.raw_transaction)
+        base_transaction.append("--signing-key-file")
+        base_transaction.append(self.signing_key)
+        base_transaction.append("--out-file")
+        self.signed_file = os.path.join(tempdir.name, f"{self.transaction_uuid}.signed")
+        base_transaction.append(self.signed_file)
+        self.prepared_transaction = base_transaction
+
+class SubmitTransaction(Transaction):
+
+    def __init__(self, signed_transaction: SignTransaction):
+        super().__init__(signed_transaction.testnet)
+        self.raw_transaction = signed_transaction.signed_file
+        self.transaction_uuid = signed_transaction.transaction_uuid
+
+    @property
+    def base_command(self):
+        return ["cardano-cli", "transaction", "submit"]
+
+    def prepare_transaction(self):
+        base_transaction = self.base_command
+        base_transaction = self.apply_blockchain(base_transaction)
+        base_transaction.append("--tx-file")
+        base_transaction.append(self.raw_transaction)
+        self.prepared_transaction = base_transaction
