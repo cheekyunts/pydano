@@ -1,0 +1,17 @@
+from pydano.query.base import Query
+from pydano.cardano_temp import protocol_params_file
+
+class ProtocolParam(Query):
+
+    """This performs the query for protocol parameters"""
+
+    def protocol_params(self):
+        current_command = self.base_command
+        current_command.append("protocol-parameters")
+        updated_command = self.apply_blockchain(current_command)
+        protocol_file = protocol_params_file()
+        updated_command.append("--out-file")
+        updated_command.append(protocol_file)
+        print("Running command", updated_command)
+        self.run_command(updated_command)
+        return protocol_file
