@@ -6,7 +6,7 @@ Python scripts to do miniting and perform transactions and minting.
 Connecting to remote cardano node instead of starting node on your laptop.
 ==========================================================================
 
-1. Grab the latest cardano binary from (Download Link)[https://developers.cardano.org/docs/get-started/installing-cardano-node]
+1. Grab the latest cardano binary from [Download Link](https://developers.cardano.org/docs/get-started/installing-cardano-node)
 2. Extract `cardano-cli` locally by extracting the downloaded package. `tar xzfv cardano-node-1.29.0-linux.tar.gz`
 3. Install `cardano-*` binaries on local path. ` cp cardano-* $HOME/.local/bin/`
 4. Start socat on your server, where actual node is running. `nohup socat TCP-LISTEN:8080,fork,reuseaddr, UNIX-CONNECT:$CARDANO_NODE_SOCKET_PATH&`
