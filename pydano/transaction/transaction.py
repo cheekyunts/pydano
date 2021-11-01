@@ -5,6 +5,8 @@ from collections import defaultdict
 from pydano.cardano_cli import CardanoCli
 from pydano.cardano_temp import tempdir
 from pydano.query.protocol_param import ProtocolParam
+from pydano.query.utxo import UTXOs
+
 
 class TransactionConfig:
     """
@@ -17,6 +19,18 @@ class TransactionConfig:
         self.output_txs = defaultdict(list)
         self.change_address = change_address
 
+
+    """
+    add_input_utxo: This is a helper function, it queries all the utxos on a address
+                and add it to the transaction.
+    """
+    def add_input_utxos(self, addr: str):
+        utxo = UTXOs()
+        utxos, totalLovelace = utxo.utxos(addr)
+        print(totalLovelace, utxos)
+        for i in utxos:
+            self.add_tx_in(**i)
+
     """
     add_input_utxo: This will add a new input utxo to the transaction.
     
@@ -26,8 +40,8 @@ class TransactionConfig:
     @params:
         input_utxo: utxo to add as input to the transaction.
     """
-    def add_tx_in(self, input_utxo: str, utxo_index: int):
-        self.input_utxos.append({'utxo_hash': input_utxo, 'utxo_index': utxo_index})
+    def add_tx_in(self, utxo_hash: str, utxo_index: int):
+        self.input_utxos.append({'utxo_hash': utxo_hash, 'utxo_index': utxo_index})
         return len(self.input_utxos)
 
     """
