@@ -42,6 +42,11 @@ parser.add_argument("--minting_script",
                     help="Minting script",
                     type=str,
                     default=None)
+parser.add_argument("--metadata_json",
+                    help="Metadata Json file",
+                    type=str,
+                    default=None)
+
 parser.add_argument("--log_level",
                      help="Set log level to",
                      type=str,
@@ -69,7 +74,7 @@ os.environ['CARDANO_NODE_SOCKET_PATH'] = args.node_socket
 
 tc = TransactionConfig(in_address)
 # This is a hack to get the policyID for now
-mt = MintTransaction(tc, minting_script_file=args.minting_script)
+mt = MintTransaction(tc, minting_script_file=args.minting_script, metadata_json_file=args.metadata_json)
 tc.add_input_utxos(in_address)
 first_transaction = True
 print(args.pay)
@@ -83,7 +88,7 @@ for address, value in args.pay:
 #tc.add_tx_out("addr_test1vqjx7cmy52973y868fvesd7tjuvj9njxqgzen5vyvs9cw0qqpcqjp", "lovelace", 1000000)
 
 print("Building Transaction")
-mt = MintTransaction(tc, minting_script_file=args.minting_script)
+mt = MintTransaction(tc, minting_script_file=args.minting_script, metadata_json_file=args.metadata_json)
 mt.run_transaction()
 print("Signing Transaction")
 st = SignTransaction(mt, args.signing_key)

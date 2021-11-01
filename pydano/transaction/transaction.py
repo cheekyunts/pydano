@@ -93,7 +93,7 @@ class TransactionConfig:
             command_args.append(out_address+tx_out_config)
         return command_args
 
-    def mint_args(self, minting_script_file):
+    def mint_args(self, minting_script_file, metadata_json_file=None):
         command_args = ['--mint']
         mint_args = ''
         first_transaction = True
@@ -106,6 +106,9 @@ class TransactionConfig:
         command_args.append(mint_args)
         command_args.append("--minting-script-file")
         command_args.append(minting_script_file)
+        if metadata_json_file:
+            command_args.append("--metadata-json-file")
+            command_args.append(metadata_json_file)
         script = json.load(open(minting_script_file, 'r'))
         invalid_hereafter_slot = script['scripts'][0]['slot']
         command_args.append("--invalid-hereafter")
