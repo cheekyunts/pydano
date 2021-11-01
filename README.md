@@ -24,7 +24,7 @@ Sending ADA from one wallet to other wallet
 ===========================================
 
 ```
-python run_transactions.py --input_address addr_test1vqe6pyeqq66nffkku7ra8xhss97nzltclgnhn20u7xyhzwcu5zzvt --pay addr_test1vqjx7cmy52973y868fvesd7tjuvj9njxqgzen5vyvs9cw0qqpcqjp=1000000 --signing_key keys/payment2.skey
+python scripts/run_transactions.py --input_address addr_test1vqe6pyeqq66nffkku7ra8xhss97nzltclgnhn20u7xyhzwcu5zzvt --pay addr_test1vqjx7cmy52973y868fvesd7tjuvj9njxqgzen5vyvs9cw0qqpcqjp=1000000 --signing_key keys/payment2.skey
 ```
 
 This would send ADA as listed in `--pay` argument from wallet in `--input_address`.
