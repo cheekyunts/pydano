@@ -19,6 +19,9 @@ parser.add_argument("--log_level",
                      help="Set log level to",
                      type=str,
                      default="INFO")
+parser.add_argument("--mainnet",
+                     help="Set transaction network to mainnet",
+                     action='store_true')
 parser.add_argument("--node_socket",
                     help="Location of node socket to talk to",
                     type=str,
@@ -26,7 +29,12 @@ parser.add_argument("--node_socket",
 parser.add_argument("--min_utxo",
                     help="Minting script",
                     type=int,
-                    default=1724100)
+                    default=1324100)
+parser.add_argument("--min_change_utxo",
+                    help="Minting script",
+                    type=int,
+                    default=4275768)
+
 parser.add_argument("--minting_script",
                     help="Minting script",
                     type=str,
@@ -54,7 +62,7 @@ if not args.signing_key:
 in_address = args.input_address
 os.environ['CARDANO_NODE_SOCKET_PATH'] = args.node_socket 
 
-tc = TransactionConfig(in_address, args.min_utxo)
+tc = TransactionConfig(in_address, args.min_utxo, testnet=not args.mainnet, min_change_utxo=args.min_change_utxo)
 tc.add_input_utxos(in_address)
 if args.pay:
     print("Doing Pay Transaction")
@@ -65,11 +73,11 @@ if args.pay:
         quantity = payee['quantity']
         tc.add_tx_out(address, token_name, quantity)
     print("Building Transaction")
-    bt = BuildTransaction(tc)
+    bt = BuildTransaction(tc, testnet=not args.mainnet)
     bt.run_transaction()
 elif args.mint:
     print("Doing Mint Transaction")
-    bt = MintTransaction(tc, minting_script_file=args.minting_script, metadata_json_file=args.metadata_json)
+    bt = MintTransaction(tc, minting_script_file=args.minting_script, metadata_json_file=args.metadata_json, testnet=not args.mainnet)
     all_payee = json.load(open(args.mint, 'r'))
     for payee in all_payee:
         address = payee['address']
