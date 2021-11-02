@@ -16,13 +16,14 @@ class TransactionConfig:
         which is passed around the transaction processing fees.
     """
 
-    def __init__(self, change_address: str):
+    def __init__(self, change_address: str, min_utxo: int):
         self.input_utxos = []
         self.output_txs = defaultdict(list)
         self.mints = []
         self.change_address = change_address
         self.available_lovelace = 0
         self.available_tokens = set()
+        self.min_utxo = min_utxo
 
 
     """
@@ -87,20 +88,34 @@ class TransactionConfig:
         for out_address, out_assets in self.output_txs.items():
             command_args.append("--tx-out")
             assert len(out_assets) > 0
-            assert out_assets[0]['name'].lower() == 'lovelace'
-            tx_out_config = ""
-            tx_out_config += '+' + str(out_assets[0]['quantity'])
-            for asset in out_assets[1:]:
-                if asset['name'] not in self.available_tokens or self.available_tokens[asset['name']] < asset['quantity']:
+
+            # It is mandatory to have one ADA transaction 
+            # So add min_utxo ada to each output tx
+            if out_assets[0]['name'].lower() == 'lovelace':
+                tx_out_config = ""
+                tx_out_config += '+' + str(out_assets[0]['quantity'])
+                index = 1
+            else:
+                tx_out_config = ""
+                tx_out_config += '+' + str(self.min_utxo)
+                index = 0
+            for asset in out_assets[index:]:
+                if (asset['name'] not in self.mints) and (asset['name'] not in self.available_tokens or self.available_tokens[asset['name']] < asset['quantity']):
                     raise ValueError("Trying to spend asset {asset['name']}, which is not available")
                 tx_out_config += '+' + str(asset['quantity']) + ' ' + str(asset['name'])
-                self.available_tokens[asset['name']] -= asset['quantity']
+                if (asset['name'] not in self.mints):
+                    self.available_tokens[asset['name']] -= asset['quantity']
             command_args.append(out_address+tx_out_config)
-        command_args.append("--tx-out")
-        leftover_out_config = "+ " + "2896488"
-        for key, value in self.available_tokens.items():
-            leftover_out_config += '+' +  str(value) + ' ' + str(key)
-        command_args.append(self.change_address+leftover_out_config)
+
+        # This is to return non-ada assets back to change_address, as they are not 
+        # accounted in current `transaction build` and `cardano-cli` complains about
+        # unbalances non-ada assets.
+        if len(self.available_tokens) > 0:
+            command_args.append("--tx-out")
+            leftover_out_config = "+ " + str(self.min_utxo)
+            for key, value in self.available_tokens.items():
+                leftover_out_config += '+' +  str(value) + ' ' + str(key)
+            command_args.append(self.change_address+leftover_out_config)
         return command_args
 
     def mint_args(self, minting_script_file, metadata_json_file=None):
