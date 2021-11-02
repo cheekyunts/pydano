@@ -21,6 +21,8 @@ class TransactionConfig:
         self.output_txs = defaultdict(list)
         self.mints = []
         self.change_address = change_address
+        self.available_lovelace = 0
+        self.available_tokens = set()
 
 
     """
@@ -29,8 +31,8 @@ class TransactionConfig:
     """
     def add_input_utxos(self, addr: str):
         utxo = UTXOs()
-        utxos, totalLovelace = utxo.utxos(addr)
-        logging.info(f"Total amount available at addres {addr} is {totalLovelace}")
+        utxos, self.available_lovelace, self.available_tokens = utxo.utxos(addr)
+        logging.info(f"Total amount available at addres {addr} is {self.available_lovelace}, {self.available_tokens}")
         logging.debug(f"All UTXOs at addres {utxos}")
         for i in utxos:
             self.add_tx_in(**i)
@@ -89,8 +91,16 @@ class TransactionConfig:
             tx_out_config = ""
             tx_out_config += '+' + str(out_assets[0]['quantity'])
             for asset in out_assets[1:]:
+                if asset['name'] not in self.available_tokens or self.available_tokens[asset['name']] < asset['quantity']:
+                    raise ValueError("Trying to spend asset {asset['name']}, which is not available")
                 tx_out_config += '+' + str(asset['quantity']) + ' ' + str(asset['name'])
+                self.available_tokens[asset['name']] -= asset['quantity']
             command_args.append(out_address+tx_out_config)
+        command_args.append("--tx-out")
+        leftover_out_config = "+ " + "2896488"
+        for key, value in self.available_tokens.items():
+            leftover_out_config += '+' +  str(value) + ' ' + str(key)
+        command_args.append(self.change_address+leftover_out_config)
         return command_args
 
     def mint_args(self, minting_script_file, metadata_json_file=None):
