@@ -74,7 +74,6 @@ os.environ['CARDANO_NODE_SOCKET_PATH'] = args.node_socket
 
 tc = TransactionConfig(in_address)
 # This is a hack to get the policyID for now
-mt = MintTransaction(tc, minting_script_file=args.minting_script, metadata_json_file=args.metadata_json)
 tc.add_input_utxos(in_address)
 first_transaction = True
 print(args.pay)

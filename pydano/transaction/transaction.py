@@ -16,11 +16,16 @@ class TransactionConfig:
         which is passed around the transaction processing fees.
     """
 
-    def __init__(self, change_address: str):
+    def __init__(self, change_address: str, min_utxo: int, testnet: bool = True, min_change_utxo: int = 4275768):
         self.input_utxos = []
         self.output_txs = defaultdict(list)
         self.mints = []
         self.change_address = change_address
+        self.available_lovelace = 0
+        self.available_tokens = set()
+        self.min_utxo = min_utxo
+        self.min_change_utxo = min_change_utxo
+        self.testnet = testnet
 
 
     """
@@ -28,9 +33,9 @@ class TransactionConfig:
                 and add it to the transaction.
     """
     def add_input_utxos(self, addr: str):
-        utxo = UTXOs()
-        utxos, totalLovelace = utxo.utxos(addr)
-        logging.info(f"Total amount available at addres {addr} is {totalLovelace}")
+        utxo = UTXOs(testnet=self.testnet)
+        utxos, self.available_lovelace, self.available_tokens = utxo.utxos(addr)
+        logging.info(f"Total amount available at addres {addr} is {self.available_lovelace}, {self.available_tokens}")
         logging.debug(f"All UTXOs at addres {utxos}")
         for i in utxos:
             self.add_tx_in(**i)
@@ -85,12 +90,34 @@ class TransactionConfig:
         for out_address, out_assets in self.output_txs.items():
             command_args.append("--tx-out")
             assert len(out_assets) > 0
-            assert out_assets[0]['name'].lower() == 'lovelace'
-            tx_out_config = ""
-            tx_out_config += '+' + str(out_assets[0]['quantity'])
-            for asset in out_assets[1:]:
+
+            # It is mandatory to have one ADA transaction 
+            # So add min_utxo ada to each output tx
+            if out_assets[0]['name'].lower() == 'lovelace':
+                tx_out_config = ""
+                tx_out_config += '+' + str(out_assets[0]['quantity'])
+                index = 1
+            else:
+                tx_out_config = ""
+                tx_out_config += '+' + str(self.min_utxo)
+                index = 0
+            for asset in out_assets[index:]:
+                if (asset['name'] not in self.mints) and (asset['name'] not in self.available_tokens or self.available_tokens[asset['name']] < asset['quantity']):
+                    raise ValueError("Trying to spend asset {asset['name']}, which is not available")
                 tx_out_config += '+' + str(asset['quantity']) + ' ' + str(asset['name'])
+                if (asset['name'] not in self.mints):
+                    self.available_tokens[asset['name']] -= asset['quantity']
             command_args.append(out_address+tx_out_config)
+
+        # This is to return non-ada assets back to change_address, as they are not 
+        # accounted in current `transaction build` and `cardano-cli` complains about
+        # unbalances non-ada assets.
+        if len(self.available_tokens) > 0:
+            command_args.append("--tx-out")
+            leftover_out_config = "+ " + str(self.min_change_utxo)
+            for key, value in self.available_tokens.items():
+                leftover_out_config += '+' +  str(value) + ' ' + str(key)
+            command_args.append(self.change_address+leftover_out_config)
         return command_args
 
     def mint_args(self, minting_script_file, metadata_json_file=None):
@@ -176,7 +203,7 @@ class BuildTransaction(Transaction):
 class SignTransaction(Transaction):
 
     def __init__(self, transaction: Transaction, signing_key: str):
-        super().__init__(transaction.testnet)
+        super().__init__(transaction.transaction_config, transaction.testnet)
         self.raw_transaction = transaction.transaction_file
         self.transaction_uuid = transaction.transaction_uuid
         self.signing_key = signing_key
@@ -199,7 +226,7 @@ class SignTransaction(Transaction):
 class SubmitTransaction(Transaction):
 
     def __init__(self, signed_transaction: SignTransaction):
-        super().__init__(signed_transaction.testnet)
+        super().__init__(signed_transaction.transaction_config, signed_transaction.testnet)
         self.raw_transaction = signed_transaction.signed_file
         self.transaction_uuid = signed_transaction.transaction_uuid
 
