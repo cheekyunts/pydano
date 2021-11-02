@@ -24,17 +24,33 @@ Sending ADA from one wallet to other wallet
 ===========================================
 
 ```
-python scripts/run_transactions.py --input_address addr_test1vqe6pyeqq66nffkku7ra8xhss97nzltclgnhn20u7xyhzwcu5zzvt --pay addr_test1vqjx7cmy52973y868fvesd7tjuvj9njxqgzen5vyvs9cw0qqpcqjp=1000000 --signing_key keys/payment2.skey
+python scripts/run_transactions.py --input_address addr_test1vqe6pyeqq66nffkku7ra8xhss97nzltclgnhn20u7xyhzwcu5zzvt --pay execute_transaction.json --signing_key keys/payment2.skey
 ```
 
-This would send ADA as listed in `--pay` argument from wallet in `--input_address`.
+Transactions to be executed are not written in  a json file with following format:
 
+```
+[
+    {
+	"address": "addr_test1vqe6pyeqq66nffkku7ra8xhss97nzltclgnhn20u7xyhzwcu5zzvt",
+	"quantity": 1379280,
+	"token_name": "lovelace"
+    },
+    {
+	"address": "addr_test1vqe6pyeqq66nffkku7ra8xhss97nzltclgnhn20u7xyhzwcu5zzvt",
+	"quantity": 1,
+	"token_name": "29270c0384408dcf4fae241d756ec7632f9bb9a2abb2627d371bc262.cheekyunttest10"
+    }
+]
+```
+
+Input address is also used as the `change_address` for ADA and non-ADA assets.
 
 Minting some Tokens
 ===================
 
 ```
-python run_mint.py --input_address addr_test1vqe6pyeqq66nffkku7ra8xhss97nzltclgnhn20u7xyhzwcu5zzvt --pay addr_test1vqjx7cmy52973y868fvesd7tjuvj9njxqgzen5vyvs9cw0qqpcqjp=ttestcheekyunts18 addr_test1vqjx7cmy52973y868fvesd7tjuvj9njxqgzen5vyvs9cw0qqpcqjp=cheekyunttest12 addr_test1vqjx7cmy52973y868fvesd7tjuvj9njxqgzen5vyvs9cw0qqpcqjp=cheekyunttest11 addr_test1vqjx7cmy52973y868fvesd7tjuvj9njxqgzen5vyvs9cw0qqpcqjp=cheekyunttest10 --signing_key keys/payment2.skey --minting_script data/policy.script --log_level DEBUG --minting_lovlace 1758582
+python scripts/run_mint.py --input_address addr_test1vqe6pyeqq66nffkku7ra8xhss97nzltclgnhn20u7xyhzwcu5zzvt --pay addr_test1vqjx7cmy52973y868fvesd7tjuvj9njxqgzen5vyvs9cw0qqpcqjp=ttestcheekyunts18 addr_test1vqjx7cmy52973y868fvesd7tjuvj9njxqgzen5vyvs9cw0qqpcqjp=cheekyunttest12 addr_test1vqjx7cmy52973y868fvesd7tjuvj9njxqgzen5vyvs9cw0qqpcqjp=cheekyunttest11 addr_test1vqjx7cmy52973y868fvesd7tjuvj9njxqgzen5vyvs9cw0qqpcqjp=cheekyunttest10 --signing_key keys/payment2.skey --minting_script data/policy.script --log_level DEBUG --minting_lovlace 1758582
 ```
 
 This can mint multiple tokens at once and doesn't require us to pay blanket 2ADA per minting.
