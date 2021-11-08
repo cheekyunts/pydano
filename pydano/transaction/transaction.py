@@ -49,7 +49,7 @@ class TransactionConfig:
     @params:
         input_utxo: utxo to add as input to the transaction.
     """
-    def add_tx_in(self, utxo_hash: str, utxo_index: int):
+    def add_tx_in(self, utxo_hash: str, utxo_index: int, **kwargs):
         self.input_utxos.append({'utxo_hash': utxo_hash, 'utxo_index': utxo_index})
         return len(self.input_utxos)
 
@@ -103,7 +103,7 @@ class TransactionConfig:
                 index = 0
             for asset in out_assets[index:]:
                 if (asset['name'] not in self.mints) and (asset['name'] not in self.available_tokens or self.available_tokens[asset['name']] < asset['quantity']):
-                    raise ValueError("Trying to spend asset {asset['name']}, which is not available")
+                    raise ValueError(f"Trying to spend asset {asset['name']}, which is not available in {asset}, {out_assets}")
                 tx_out_config += '+' + str(asset['quantity']) + ' ' + str(asset['name'])
                 if (asset['name'] not in self.mints):
                     self.available_tokens[asset['name']] -= asset['quantity']
@@ -137,9 +137,10 @@ class TransactionConfig:
             command_args.append("--metadata-json-file")
             command_args.append(metadata_json_file)
         script = json.load(open(minting_script_file, 'r'))
-        invalid_hereafter_slot = script['scripts'][0]['slot']
-        command_args.append("--invalid-hereafter")
-        command_args.append(str(invalid_hereafter_slot))
+        if 'slot' in script['scripts'][0]:
+            invalid_hereafter_slot = script['scripts'][0]['slot']
+            command_args.append("--invalid-hereafter")
+            command_args.append(str(invalid_hereafter_slot))
         return command_args
 
 
