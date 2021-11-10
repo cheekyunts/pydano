@@ -1,6 +1,6 @@
 import os
 import uuid
-from collections import defaultdict
+from collections import defaultdict, Counter
 import logging
 import json
 
@@ -26,6 +26,8 @@ class TransactionConfig:
         self.min_utxo = min_utxo
         self.min_change_utxo = min_change_utxo
         self.testnet = testnet
+        self.fees = 0
+        self.fee_payer_address = None
 
 
     """
@@ -60,12 +62,15 @@ class TransactionConfig:
         asset_name: this can be lovlace/native token or name of the nft.
         asset_quanity: quantity of token/lovelace to transfer. Should be 1 in case of NFTs..
     """
-    def add_tx_out(self, out_address: str, asset_name: str, asset_quantity: int):
+    def add_tx_out(self, out_address: str, asset_name: str, asset_quantity: int, fee_payer = False):
         out = {'out_address': out_address,
                 'name': asset_name,
                 'quantity': asset_quantity
                 }
+
         self.output_txs[out_address].append(out)
+        if fee_payer:
+            self.fee_payer_address = out_address
         return len(self.output_txs)
 
     def add_mint(self, out_address: str, policyid: str, token_name: str):
@@ -88,25 +93,33 @@ class TransactionConfig:
     def out_tx_args(self):
         command_args = []
         for out_address, out_assets in self.output_txs.items():
+            out_asset_counter = Counter()
+            for asset in out_assets:
+                out_asset_counter[asset['name']] += asset['quantity']
             command_args.append("--tx-out")
-            assert len(out_assets) > 0
+            assert len(out_asset_counter) > 0
 
             # It is mandatory to have one ADA transaction 
             # So add min_utxo ada to each output tx
-            if out_assets[0]['name'].lower() == 'lovelace':
-                tx_out_config = ""
-                tx_out_config += '+' + str(out_assets[0]['quantity'])
+            if 'lovelace' in out_asset_counter:
+                quantity = out_asset_counter['lovelace']
+                del out_asset_counter['lovelace']
                 index = 1
             else:
-                tx_out_config = ""
-                tx_out_config += '+' + str(self.min_utxo)
+                quantity = self.min_utxo
                 index = 0
-            for asset in out_assets[index:]:
-                if (asset['name'] not in self.mints) and (asset['name'] not in self.available_tokens or self.available_tokens[asset['name']] < asset['quantity']):
-                    raise ValueError(f"Trying to spend asset {asset['name']}, which is not available in {asset}, {out_assets}")
-                tx_out_config += '+' + str(asset['quantity']) + ' ' + str(asset['name'])
-                if (asset['name'] not in self.mints):
-                    self.available_tokens[asset['name']] -= asset['quantity']
+            # Deduct the fee from out_transaction which is supposed to pay fees
+            if out_address == self.fee_payer_address:
+                quantity -= self.fees
+            tx_out_config = '+' + str(quantity)
+            for remanining_asset in out_asset_counter.items():
+                name = remanining_asset[0]
+                quantity = remanining_asset[1]
+                if (name not in self.mints) and (name not in self.available_tokens or self.available_tokens[name] < quantity):
+                    raise ValueError(f"Trying to spend asset {name}, which is not available in {remanining_asset}, {out_assets}")
+                tx_out_config += '+' + str(quantity) + ' ' + str(name)
+                if (name not in self.mints):
+                    self.available_tokens[name] -= quantity
             command_args.append(out_address+tx_out_config)
 
         # This is to return non-ada assets back to change_address, as they are not 
@@ -170,6 +183,8 @@ class Transaction(CardanoCli):
 
 class BuildTransaction(Transaction):
 
+    raw = False
+
     def __init__(self, transaction_config: TransactionConfig, testnet: bool = True):
         super().__init__(transaction_config, testnet)
         self.protocol_file = ProtocolParam(testnet).protocol_params()
@@ -180,7 +195,10 @@ class BuildTransaction(Transaction):
 
     def build_base_transaction(self):
         command = self.base_command
-        command = self.apply_blockchain(command)
+        if not self.raw:
+            command = self.apply_blockchain(command)
+        else:
+            command.extend(['--fee', str(self.transaction_config.fees)])
         command.extend(self.transaction_config.input_utxos_args())
         command.extend(self.transaction_config.out_tx_args())
         return command
@@ -194,12 +212,43 @@ class BuildTransaction(Transaction):
 
     def prepare_transaction(self):
         base_transaction = self.build_base_transaction()
-        base_transaction.append('--change-address')
-        base_transaction.append(self.transaction_config.change_address)
+        if not self.raw:
+            base_transaction.append('--change-address')
+            base_transaction.append(self.transaction_config.change_address)
         base_transaction.append("--protocol-params-file")
         base_transaction.append(self.protocol_file)
         complete_trans =  self.build_output_file(base_transaction)
         self.prepared_transaction =  complete_trans
+
+class BuildRawTransaction(BuildTransaction):
+
+    raw = True
+
+    @property
+    def base_command(self):
+        return ["cardano-cli", "transaction", "build-raw", "--alonzo-era"]
+
+class CalculateMinFeeTransaction(Transaction):
+
+    def __init__(self, transaction_config: TransactionConfig, raw_transaction: str, testnet: bool = True):
+        super().__init__(transaction_config, testnet)
+        self.raw_transaction = raw_transaction
+        self.protocol_file = ProtocolParam(testnet).protocol_params()
+
+    @property
+    def base_command(self):
+        return ["cardano-cli", "transaction", "calculate-min-fee"]
+
+    def prepare_transaction(self):
+        command = self.base_command
+        command.append('--tx-body-file')
+        command.append(self.raw_transaction)
+        len_output_txs = len(self.transaction_config.output_txs)
+        command.extend(['--tx-in-count', '1', '--tx-out-count', str(len_output_txs), '--witness-count', str(1 + len_output_txs)])
+        command = self.apply_blockchain(command)
+        command.append("--protocol-params-file")
+        command.append(self.protocol_file)
+        self.prepared_transaction = command
 
 class SignTransaction(Transaction):
 
