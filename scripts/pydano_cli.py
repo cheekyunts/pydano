@@ -2,7 +2,9 @@
 import os
 import argparse
 from pydano.transaction.transaction import TransactionConfig, BuildTransaction, SignTransaction, SubmitTransaction
-from pydano.transaction.mint_transaction import MintTransaction
+from pydano.transaction.composite_transaction import AdjustFeeTransaction
+from pydano.transaction.mint_transaction import MintTransaction, MintRawTransaction
+from pydano.transaction.policy_transaction import PolicyIDTransaction
 from pydano.query.utxo import UTXOs
 import logging
 import json
@@ -111,17 +113,17 @@ elif args.receive_mint:
         # 0.16 This is to cover the transaction fees.
         tc = TransactionConfig(in_address, args.min_utxo, testnet=not args.mainnet, min_change_utxo=args.min_change_utxo)
         tc.add_tx_in(utxo_hash, utxo_index)
-        print(utxo_amount, args.token_cost + args.min_utxo + args.transaction_cost)
-        if utxo_amount > (args.token_cost + args.min_utxo + args.transaction_cost):
-            bt = MintTransaction(tc, minting_script_file=args.minting_script, metadata_json_file=args.metadata_json, testnet=not args.mainnet)
-            send_amount = utxo_amount - args.token_cost - args.transaction_cost  - 999978
+        if utxo_amount > (args.token_cost + args.min_utxo):
+            policyID = PolicyIDTransaction(not args.mainnet).policyID(args.minting_script)
+            send_amount = utxo_amount - args.token_cost
             address = 'addr_test1vqjx7cmy52973y868fvesd7tjuvj9njxqgzen5vyvs9cw0qqpcqjp'
             token_name = 'cheekyirvine'
             tc.add_tx_out(address, 'lovelace', send_amount)
-            tc.add_tx_out(args.receiver_wallet, 'lovelace', args.token_cost)
-            tc.add_mint(address, bt.policyID, token_name)
-            bt.transaction_config =  tc
-            bt.run_transaction()
+            tc.add_tx_out(args.receiver_wallet, 'lovelace', args.token_cost, fee_payer=True)
+            tc.add_mint(address, policyID, token_name)
+            bt = MintRawTransaction(tc, minting_script_file=args.minting_script, metadata_json_file=args.metadata_json, testnet=not args.mainnet)
+            adj_fee = AdjustFeeTransaction(bt, tc)
+            bt = adj_fee.run_transaction()
             do_signing = True
         elif utxo_amount > args.transaction_cost + 999978:
             address = 'addr_test1vqjx7cmy52973y868fvesd7tjuvj9njxqgzen5vyvs9cw0qqpcqjp'
