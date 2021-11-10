@@ -51,7 +51,7 @@ class UTXOs(Query):
             utxo_hash, utxo_index, lovelace, utxo_tokens = self.parse_row(utxoTableRows[x])
             totalLovelace +=  lovelace
             tokens = tokens + utxo_tokens
-            available_utxos.append({'utxo_hash': utxo_hash, 'utxo_index': utxo_index})
+            available_utxos.append({'utxo_hash': utxo_hash, 'utxo_index': utxo_index, 'utxo_amount': lovelace})
         return available_utxos, totalLovelace, tokens
 
     def utxos(self, address):
