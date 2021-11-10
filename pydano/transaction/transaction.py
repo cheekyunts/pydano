@@ -1,6 +1,6 @@
 import os
 import uuid
-from collections import defaultdict
+from collections import defaultdict, Counter
 import logging
 import json
 
@@ -93,27 +93,33 @@ class TransactionConfig:
     def out_tx_args(self):
         command_args = []
         for out_address, out_assets in self.output_txs.items():
+            out_asset_counter = Counter()
+            for asset in out_assets:
+                out_asset_counter[asset['name']] += asset['quantity']
             command_args.append("--tx-out")
-            assert len(out_assets) > 0
+            assert len(out_asset_counter) > 0
 
             # It is mandatory to have one ADA transaction 
             # So add min_utxo ada to each output tx
-            if out_assets[0]['name'].lower() == 'lovelace':
-                quantity = out_assets[0]['quantity']
+            if 'lovelace' in out_asset_counter:
+                quantity = out_asset_counter['lovelace']
+                del out_asset_counter['lovelace']
                 index = 1
             else:
                 quantity = self.min_utxo
                 index = 0
             # Deduct the fee from out_transaction which is supposed to pay fees
-            if out_assets[0]['out_address'] == self.fee_payer_address:
+            if out_address == self.fee_payer_address:
                 quantity -= self.fees
             tx_out_config = '+' + str(quantity)
-            for asset in out_assets[index:]:
-                if (asset['name'] not in self.mints) and (asset['name'] not in self.available_tokens or self.available_tokens[asset['name']] < asset['quantity']):
-                    raise ValueError(f"Trying to spend asset {asset['name']}, which is not available in {asset}, {out_assets}")
-                tx_out_config += '+' + str(asset['quantity']) + ' ' + str(asset['name'])
-                if (asset['name'] not in self.mints):
-                    self.available_tokens[asset['name']] -= asset['quantity']
+            for remanining_asset in out_asset_counter.items():
+                name = remanining_asset[0]
+                quantity = remanining_asset[1]
+                if (name not in self.mints) and (name not in self.available_tokens or self.available_tokens[name] < quantity):
+                    raise ValueError(f"Trying to spend asset {name}, which is not available in {remanining_asset}, {out_assets}")
+                tx_out_config += '+' + str(quantity) + ' ' + str(name)
+                if (name not in self.mints):
+                    self.available_tokens[name] -= quantity
             command_args.append(out_address+tx_out_config)
 
         # This is to return non-ada assets back to change_address, as they are not 
