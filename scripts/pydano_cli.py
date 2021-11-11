@@ -69,6 +69,11 @@ parser.add_argument("--receiver_wallet",
                     help="Address of the receiver wallet",
                     type=str,
                     default=None)
+parser.add_argument("--token_name",
+                    help="Token name for receiver mint",
+                    type=str,
+                    default=None)
+
 
 parser.add_argument("--blockfrost_key",
                     help="Api key of blockfrost",
@@ -98,6 +103,48 @@ if not args.signing_key:
 in_address = args.input_address
 os.environ['CARDANO_NODE_SOCKET_PATH'] = args.node_socket 
 
+def do_receive_miint():
+    query_utxo = UTXOs(testnet=not args.mainnet)
+    utxos, available_lovelace, available_tokens = query_utxo.utxos(args.input_address)
+    for utxo in utxos:
+        try:
+            do_signing = False
+            utxo_hash, utxo_index, utxo_amount = utxo['utxo_hash'], utxo['utxo_index'], utxo['utxo_amount']
+            # 0.16 This is to cover the transaction fees.
+            tc = TransactionConfig(in_address, args.min_utxo, testnet=not args.mainnet, min_change_utxo=args.min_change_utxo)
+            tc.add_tx_in(utxo_hash, utxo_index)
+            if utxo_amount > (args.token_cost + args.min_utxo):
+                policyID = PolicyIDTransaction(not args.mainnet).policyID(args.minting_script)
+                send_amount = utxo_amount - args.token_cost
+                address = blockfrost_api.transaction_utxos(utxo_hash).inputs[0].address
+                token_name = args.token_name
+                tc.add_tx_out(address, 'lovelace', send_amount)
+                tc.add_tx_out(args.receiver_wallet, 'lovelace', args.token_cost, fee_payer=True)
+                tc.add_mint(address, policyID, token_name)
+                bt = MintRawTransaction(tc, minting_script_file=args.minting_script, metadata_json_file=args.metadata_json, testnet=not args.mainnet)
+                adj_fee = AdjustFeeTransaction(bt, tc)
+                bt = adj_fee.run_transaction()
+                do_signing = True
+            elif utxo_amount > args.transaction_cost + 999978:
+                address = blockfrost_api.transaction_utxos(utxo_hash).inputs[0].address
+                send_amount = utxo_amount - args.transaction_cost - 999978
+                tc.add_tx_out(address, 'lovelace', send_amount)
+                bt = BuildTransaction(tc, testnet=not args.mainnet)
+                bt.run_transaction()
+                do_signing = True
+            else:
+                print(f"Ignoring {utxo_hash}#{utxo_index} with amount {utxo_amount}")
+            if do_signing:
+                print("Signing Transaction")
+                st = SignTransaction(bt, args.signing_key)
+                st.run_transaction()
+                print("Submitting Transaction")
+                st = SubmitTransaction(st)
+                st.run_transaction()
+        except Exception as e:
+            print(e)
+            
+
 tc = TransactionConfig(in_address, args.min_utxo, testnet=not args.mainnet, min_change_utxo=args.min_change_utxo)
 if args.pay:
     print("Doing Pay Transaction")
@@ -123,42 +170,12 @@ elif args.mint:
     bt.transaction_config = tc
     bt.run_transaction()
 elif args.receive_mint:
-    query_utxo = UTXOs(testnet=not args.mainnet)
-    utxos, available_lovelace, available_tokens = query_utxo.utxos(args.input_address)
-    for utxo in utxos:
-        do_signing = False
-        utxo_hash, utxo_index, utxo_amount = utxo['utxo_hash'], utxo['utxo_index'], utxo['utxo_amount']
-        # 0.16 This is to cover the transaction fees.
-        tc = TransactionConfig(in_address, args.min_utxo, testnet=not args.mainnet, min_change_utxo=args.min_change_utxo)
-        tc.add_tx_in(utxo_hash, utxo_index)
-        if utxo_amount > (args.token_cost + args.min_utxo):
-            policyID = PolicyIDTransaction(not args.mainnet).policyID(args.minting_script)
-            send_amount = utxo_amount - args.token_cost
-            address = blockfrost_api.transaction_utxos(utxo_hash).inputs[0].address
-            token_name = 'cheekyirvine'
-            tc.add_tx_out(address, 'lovelace', send_amount)
-            tc.add_tx_out(args.receiver_wallet, 'lovelace', args.token_cost, fee_payer=True)
-            tc.add_mint(address, policyID, token_name)
-            bt = MintRawTransaction(tc, minting_script_file=args.minting_script, metadata_json_file=args.metadata_json, testnet=not args.mainnet)
-            adj_fee = AdjustFeeTransaction(bt, tc)
-            bt = adj_fee.run_transaction()
-            do_signing = True
-        elif utxo_amount > args.transaction_cost + 999978:
-            address = blockfrost_api.transaction_utxos(utxo_hash).inputs[0].address
-            send_amount = utxo_amount - args.transaction_cost - 999978
-            tc.add_tx_out(address, 'lovelace', send_amount)
-            bt = BuildTransaction(tc, testnet=not args.mainnet)
-            bt.run_transaction()
-            do_signing = True
-        else:
-            print(f"Ignoring {utxo_hash}#{utxo_index} with amount {utxo_amount}")
-        if do_signing:
-            print("Signing Transaction")
-            st = SignTransaction(bt, args.signing_key)
-            st.run_transaction()
-            print("Submitting Transaction")
-            st = SubmitTransaction(st)
-            st.run_transaction()
+    while True:
+        try:
+            do_receive_miint()
+        except Exception as e:
+            print(e)
+            pass
     exit(0)
                                 
 
