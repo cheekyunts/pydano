@@ -6,7 +6,7 @@ import json
 
 from blockfrost import BlockFrostApi, ApiError, ApiUrls
 
-from pydano.transaction.transaction import TransactionConfig, BuildTransaction, SignTransaction, SubmitTransaction
+from pydano.transaction.transaction import TransactionConfig, BuildTransaction, SignTransaction, SubmitTransaction, BuildRawTransaction
 from pydano.transaction.composite_transaction import AdjustFeeTransaction
 from pydano.transaction.mint_transaction import MintTransaction, MintRawTransaction
 from pydano.transaction.policy_transaction import PolicyIDTransaction
@@ -127,10 +127,11 @@ def do_receive_miint():
                 do_signing = True
             elif utxo_amount > args.transaction_cost + 999978:
                 address = blockfrost_api.transaction_utxos(utxo_hash).inputs[0].address
-                send_amount = utxo_amount - args.transaction_cost - 999978
-                tc.add_tx_out(address, 'lovelace', send_amount)
-                bt = BuildTransaction(tc, testnet=not args.mainnet)
-                bt.run_transaction()
+                send_amount = utxo_amount
+                tc.add_tx_out(address, 'lovelace', send_amount, fee_payer=True)
+                bt = BuildRawTransaction(tc, testnet=not args.mainnet)
+                refund_adj_fee = AdjustFeeTransaction(bt, tc)
+                bt = refund_adj_fee.run_transaction()
                 do_signing = True
             else:
                 print(f"Ignoring {utxo_hash}#{utxo_index} with amount {utxo_amount}")
