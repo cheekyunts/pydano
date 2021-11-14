@@ -15,11 +15,15 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.6',                
-    package_dir={'':'pydano'},
-    packages=setuptools.find_packages(exclude=['scripts'], include=['pydano', 'pydano.query', 'pydano.transaction', 'pydano.blockfrost'], where='pydano'),
-    entry_points = {
-        'console_scripts': ['pydano-cli=pydano.pydano_cli:main'],
-    },
-    install_requires=['blockfrost-python==0.3.1']
+    python_requires=">=3.6",
+    package_dir={"": "pydano"},
+    packages=setuptools.find_packages(
+        exclude=["scripts"],
+        include=["pydano", "pydano.query", "pydano.transaction", "pydano.blockfrost"],
+        where="pydano",
+    ),
+    entry_points={"console_scripts": ["pydano-cli=pydano.pydano_cli:main"]},
+    install_requires=["blockfrost-python==0.3.1"],
+    setup_requires=["pytest-runner", "flake8"],
+    tests_require=["pytest"],
 )
