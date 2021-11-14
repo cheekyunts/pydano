@@ -3,6 +3,7 @@ import logging
 from pydano.query.base import Query
 from pydano.cardano_temp import protocol_params_file
 
+
 class ProtocolParam(Query):
 
     """This performs the query for protocol parameters"""
@@ -12,6 +13,7 @@ class ProtocolParam(Query):
                      and return location of the file to be used in other requests.
         @returns location of file containing current parameter file.
     """
+
     def protocol_params(self):
         current_command = self.base_command
         current_command.append("protocol-parameters")
