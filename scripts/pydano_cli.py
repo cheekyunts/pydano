@@ -157,19 +157,21 @@ if args.pay:
         quantity = payee['quantity']
         tc.add_tx_out(address, token_name, quantity)
     print("Building Transaction")
-    bt = BuildTransaction(tc, testnet=not args.mainnet)
-    bt.run_transaction()
+    bt = BuildRawTransaction(tc, testnet=not args.mainnet)
+    refund_adj_fee = AdjustFeeTransaction(bt, tc)
+    bt = refund_adj_fee.run_transaction()
 elif args.mint:
     print("Doing Mint Transaction")
     tc.add_input_utxos(in_address)
-    bt = MintTransaction(tc, minting_script_file=args.minting_script, metadata_json_file=args.metadata_json, testnet=not args.mainnet)
+    bt = MintRawTransaction(tc, minting_script_file=args.minting_script, metadata_json_file=args.metadata_json, testnet=not args.mainnet)
     all_payee = json.load(open(args.mint, 'r'))
     for payee in all_payee:
         address = payee['address']
         token_name = payee['token_name']
         tc.add_mint(address, bt.policyID, token_name)
     bt.transaction_config = tc
-    bt.run_transaction()
+    refund_adj_fee = AdjustFeeTransaction(bt, tc)
+    bt = refund_adj_fee.run_transaction()
 elif args.receive_mint:
     while True:
         try:

@@ -92,6 +92,9 @@ class TransactionConfig:
 
     def out_tx_args(self):
         command_args = []
+        fees_paid = False
+        available_lovelace = self.available_lovelace
+        available_tokens = self.available_tokens.copy()
         for out_address, out_assets in self.output_txs.items():
             out_asset_counter = Counter()
             for asset in out_assets:
@@ -111,7 +114,9 @@ class TransactionConfig:
             # Deduct the fee from out_transaction which is supposed to pay fees
             if out_address == self.fee_payer_address:
                 quantity -= self.fees
+                fees_paid = True
             tx_out_config = '+' + str(quantity)
+            available_lovelace -= quantity
             for remanining_asset in out_asset_counter.items():
                 name = remanining_asset[0]
                 quantity = remanining_asset[1]
@@ -119,15 +124,20 @@ class TransactionConfig:
                     raise ValueError(f"Trying to spend asset {name}, which is not available in {remanining_asset}, {out_assets}")
                 tx_out_config += '+' + str(quantity) + ' ' + str(name)
                 if (name not in self.mints):
-                    self.available_tokens[name] -= quantity
+                    available_tokens[name] -= quantity
             command_args.append(out_address+tx_out_config)
 
         # This is to return non-ada assets back to change_address, as they are not 
         # accounted in current `transaction build` and `cardano-cli` complains about
         # unbalances non-ada assets.
-        if len(self.available_tokens) > 0:
+        if len(available_tokens) > 0 or available_lovelace > 0:
+            pending_lovlace = available_lovelace
+            if not fees_paid:
+                pending_lovlace -= self.fees
+            if pending_lovlace < self.min_change_utxo:
+                raise ValueError("Not enough money for returning the change")
             command_args.append("--tx-out")
-            leftover_out_config = "+ " + str(self.min_change_utxo)
+            leftover_out_config = "+ " + str(pending_lovlace)
             for key, value in self.available_tokens.items():
                 leftover_out_config += '+' +  str(value) + ' ' + str(key)
             command_args.append(self.change_address+leftover_out_config)
