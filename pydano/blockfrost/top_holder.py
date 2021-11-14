@@ -43,11 +43,17 @@ class TopHolders:
         asset_holder_url = self.assets_url[self.url_identifier].format(
             asset_id=asset_id
         )
-        res = requests.get(asset_holder_url, headers=self.project_headers)
-        if res.status_code == 200:
-            address = res.json()
-            json.dump(address, open(f"cache/{asset_id}.json", "w"))
-            return address
+        addresses = []
+        for page in tqdm.tqdm(range(1, 100)):
+            res = requests.get(
+                asset_holder_url, headers=self.project_headers, params={"page": page}
+            )
+            if res.status_code == 200:
+                address = res.json()
+                if len(address) == 0:
+                    json.dump(addresses, open(f"cache/{asset_id}.json", "w"))
+                    return addresses
+                addresses.extend(address)
         print(f"asset Request Failed {asset_id}")
         return None
 
@@ -83,16 +89,18 @@ class TopHolders:
         print("Total Assets: ", len(self.all_assets))
         for asset in tqdm.tqdm(self.all_assets):
             asset_id = asset["asset"]
-            address = self.get_asset(asset_id)
-            if len(address) > 0 and type(address) == list:
-                holder = address[0]["address"]
-                data = self.get_stake_address(holder)
-                if data:
-                    unt_holder = data["stake_address"]
-                    self.c[unt_holder] += 1
-                    self.stake_to_payment_address[str(unt_holder)].append(holder)
-                else:
-                    print(f"Cannot find the address: {holder}")
+            addresses = self.get_asset(asset_id)
+            if len(addresses) > 0 and type(addresses) == list:
+                for address in tqdm.tqdm(addresses):
+                    holder = address["address"]
+                    holding_quantity = int(address["quantity"])
+                    data = self.get_stake_address(holder)
+                    if data:
+                        unt_holder = data["stake_address"]
+                        self.c[unt_holder] += holding_quantity
+                        self.stake_to_payment_address[str(unt_holder)].append(holder)
+                    else:
+                        print(f"Cannot find the address: {holder}")
 
             else:
                 print("No address returned", asset, address)
