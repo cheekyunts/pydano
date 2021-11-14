@@ -125,9 +125,11 @@ class TransactionConfig:
         # This is to return non-ada assets back to change_address, as they are not 
         # accounted in current `transaction build` and `cardano-cli` complains about
         # unbalances non-ada assets.
-        if len(self.available_tokens) > 0:
+        if len(self.available_tokens) > 0 or self.available_lovelace > 0:
+            if self.available_lovelace - self.fees < self.min_change_utxo:
+                raise ValueError("Not enough money for returning the change")
             command_args.append("--tx-out")
-            leftover_out_config = "+ " + str(self.min_change_utxo)
+            leftover_out_config = "+ " + str(self.available_lovelace - self.fees)
             for key, value in self.available_tokens.items():
                 leftover_out_config += '+' +  str(value) + ' ' + str(key)
             command_args.append(self.change_address+leftover_out_config)
