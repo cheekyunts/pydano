@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="pydano",
-    version="0.0.5",
+    version="0.0.6",
     author="Gaurav Arora",
     description="Library to interact with cardano network",
     long_description=long_description,
@@ -16,8 +16,8 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.6',                
-    package_dir={'':'pydano'},     
-    packages=setuptools.find_packages(where="pydano"),
+    package_dir={'':'pydano'},
+    packages=setuptools.find_packages(exclude=['scripts'], include=['pydano', 'pydano.query', 'pydano.transaction', 'pydano.blockfrost'], where='pydano'),
     entry_points = {
         'console_scripts': ['pydano-cli=pydano.pydano_cli:main'],
     },

@@ -1,11 +1,20 @@
 # pydano
-Python helper scripts to do minting and transactions via `cardano_cli`.
+Python library to interact with cardano network. This is essentially a wrapper around `cardano_cli`.
+
+Installing
+==========
+
+Install using `pip`
+
+```
+pip install pydano==0.0.6
+```
 
 Sending ADA from one wallet to other wallets
 ===========================================
 
 ```
-python scripts/pydano_cli.py --input_address addr_test1vqe6pyeqq66nffkku7ra8xhss97nzltclgnhn20u7xyhzwcu5zzvt --pay execute_transaction.json --signing_key keys/payment2.skey
+pydano-cli --input_address addr_test1vqe6pyeqq66nffkku7ra8xhss97nzltclgnhn20u7xyhzwcu5zzvt --pay execute_transaction.json --signing_key keys/payment2.skey
 ```
 
 Transactions to be executed written in a JSON file with the following format:
@@ -33,7 +42,7 @@ Minting Tokens
 
 Command:
 ```
-python scripts/pydano_cli.py --input_address addr_test1vqe6pyeqq66nffkku7ra8xhss97nzltclgnhn20u7xyhzwcu5zzvt --mint mint_transaction.json --signing_key keys/payment2.skey --minting_script data/policy.script --log_level DEBUG --min_utxo 1758582
+pydano-cli --input_address addr_test1vqe6pyeqq66nffkku7ra8xhss97nzltclgnhn20u7xyhzwcu5zzvt --mint mint_transaction.json --signing_key keys/payment2.skey --minting_script data/policy.script --log_level DEBUG --min_utxo 1758582
 ```
 
 Pass the assets to be minted using the `--mint` option. An example of a file is:
