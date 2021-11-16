@@ -1,11 +1,12 @@
 import subprocess
 
+
 class CardanoCli(object):
 
-    """Docstring for CardanoCli. """
+    """Docstring for CardanoCli."""
 
     def __init__(self, testnet: bool = True):
-       self.testnet = testnet
+        self.testnet = testnet
 
     @property
     def base_command(self):
@@ -22,4 +23,3 @@ class CardanoCli(object):
         except Exception as e:
             print(e.output, e.stderr)
             raise e
-
