@@ -13,15 +13,14 @@ from pydano.transaction.transaction import (
     SubmitTransaction,
     BuildRawTransaction,
 )
-from pydano.transaction.composite_transaction import AdjustFeeTransaction
 from pydano.transaction.mint_transaction import MintTransaction, MintRawTransaction
 from pydano.transaction.policy_transaction import PolicyIDTransaction
 from pydano.query.utxo import UTXOs
 
 
-def do_receive_mint(args):
+def do_receive_mint(args, blockfrost_api):
     query_utxo = UTXOs(testnet=not args.mainnet)
-    utxos, available_lovelace, available_tokens = query_utxo.utxos(args.input_address)
+    utxos, _, _ = query_utxo.utxos(args.input_address)
     for utxo in utxos:
         try:
             do_signing = False
@@ -32,7 +31,7 @@ def do_receive_mint(args):
             )
             # 0.16 This is to cover the transaction fees.
             tc = TransactionConfig(
-                in_address,
+                args.in_address,
                 args.min_utxo,
                 testnet=not args.mainnet,
                 min_change_utxo=args.min_change_utxo,
@@ -56,16 +55,15 @@ def do_receive_mint(args):
                     metadata_json_file=args.metadata_json,
                     testnet=not args.mainnet,
                 )
-                adj_fee = AdjustFeeTransaction(bt, tc)
-                bt = adj_fee.run_transaction()
-                do_signing = True
+                bt.run_raw_transaction()
+                bt.submit(args.signing_key)
             elif utxo_amount > args.transaction_cost + 999978:
                 address = blockfrost_api.transaction_utxos(utxo_hash).inputs[0].address
                 send_amount = utxo_amount
                 tc.add_tx_out(address, "lovelace", send_amount, fee_payer=True)
                 bt = BuildRawTransaction(tc, testnet=not args.mainnet)
-                refund_adj_fee = AdjustFeeTransaction(bt, tc)
-                bt = refund_adj_fee.run_transaction()
+                bt.run_raw_transaction()
+                bt.submit(args.signing_key)
                 do_signing = True
             else:
                 print(f"Ignoring {utxo_hash}#{utxo_index} with amount {utxo_amount}")
@@ -193,8 +191,8 @@ def main():
             tc.add_tx_out(address, token_name, quantity)
         print("Building Transaction")
         bt = BuildRawTransaction(tc, testnet=not args.mainnet)
-        refund_adj_fee = AdjustFeeTransaction(bt, tc)
-        bt = refund_adj_fee.run_transaction()
+        bt.run_raw_transaction()
+        bt.submit(args.signing_key)
     elif args.mint:
         print("Doing Mint Transaction")
         tc.add_input_utxos(in_address)
@@ -210,24 +208,16 @@ def main():
             token_name = payee["token_name"]
             tc.add_mint(address, bt.policyID, token_name)
         bt.transaction_config = tc
-        refund_adj_fee = AdjustFeeTransaction(bt, tc)
-        bt = refund_adj_fee.run_transaction()
+        bt.run_raw_transaction()
+        bt.submit(args.signing_key)
     elif args.receive_mint:
         while True:
             try:
-                do_receive_mint(args)
+                do_receive_mint(args, blockfrost_api)
             except Exception as e:
                 print(e)
                 pass
         exit(0)
-
-    print("Signing Transaction")
-    st = SignTransaction(bt, args.signing_key)
-    st.run_transaction()
-    print("Submitting Transaction")
-    st = SubmitTransaction(st)
-    st.run_transaction()
-
 
 if __name__ == "__main__":
     main()

@@ -9,7 +9,6 @@ from pydano.cardano_temp import tempdir
 from pydano.query.protocol_param import ProtocolParam
 from pydano.query.utxo import UTXOs
 
-
 class TransactionConfig:
     """
     This class is responsible to hold input and output utxos
@@ -117,10 +116,8 @@ class TransactionConfig:
             if "lovelace" in out_asset_counter:
                 quantity = out_asset_counter["lovelace"]
                 del out_asset_counter["lovelace"]
-                index = 1
             else:
                 quantity = self.min_utxo
-                index = 0
             # Deduct the fee from out_transaction which is supposed to pay fees
             if out_address == self.fee_payer_address:
                 quantity -= self.fees
@@ -207,8 +204,76 @@ class Transaction(CardanoCli):
         logging.debug(f"Running transaction: {' '.join(self.prepared_transaction)}")
         return self.run_command(self.prepared_transaction)
 
+class RawTransaction(Transaction):
+    transaction_file = None
+    def run_raw_transaction(self):
+        self.run_transaction()
+        if self.transaction_file == None:
+            raise ValueError("Intial transaction did not complete")
+        calc_fee = CalculateMinFeeTransaction(self.transaction_config, self.transaction_file, testnet=self.testnet)
+        fees_command_stdout = calc_fee.run_transaction()
+        min_fees = fees_command_stdout.stdout.split()[0].strip()
+        if type(min_fees) == bytes:
+            min_fees = min_fees.decode()
+        if not min_fees.isnumeric():
+            raise ValueError("Error getting minfees")
+        min_fees = int(min_fees)
+        self.transaction_config.fees = min_fees
+        self.run_transaction()
+        return self
 
-class BuildTransaction(Transaction):
+class SignTransaction(Transaction):
+
+    def __init__(self, transaction: Transaction, signing_key: str):
+        super().__init__(transaction.transaction_config, transaction.testnet)
+        self.raw_transaction = transaction.transaction_file
+        self.transaction_uuid = transaction.transaction_uuid
+        self.signing_key = signing_key
+
+    @property
+    def base_command(self):
+        return ["cardano-cli", "transaction", "sign"]
+
+    def prepare_transaction(self):
+        base_transaction = self.base_command
+        base_transaction.append("--tx-body-file")
+        base_transaction.append(self.raw_transaction)
+        base_transaction.append("--signing-key-file")
+        base_transaction.append(self.signing_key)
+        base_transaction.append("--out-file")
+        self.signed_file = os.path.join(tempdir.name, f"{self.transaction_uuid}.signed")
+        base_transaction.append(self.signed_file)
+        self.prepared_transaction = base_transaction
+
+class SubmitTransaction(Transaction):
+
+    def __init__(self, signed_transaction: SignTransaction):
+        super().__init__(signed_transaction.transaction_config, signed_transaction.testnet)
+        self.raw_transaction = signed_transaction.signed_file
+        self.transaction_uuid = signed_transaction.transaction_uuid
+
+    @property
+    def base_command(self):
+        return ["cardano-cli", "transaction", "submit"]
+
+    def prepare_transaction(self):
+        base_transaction = self.base_command
+        base_transaction = self.apply_blockchain(base_transaction)
+        base_transaction.append("--tx-file")
+        base_transaction.append(self.raw_transaction)
+        self.prepared_transaction = base_transaction
+
+class SignAndSubmit:
+
+    def submit(self, signing_key):
+        print("Signing Transaction")
+        st = SignTransaction(self, signing_key)
+        st.run_transaction()
+        print("Submitting Transaction")
+        st = SubmitTransaction(st)
+        st.run_transaction()
+
+class BuildTransaction(Transaction, SignAndSubmit):
 
     raw = False
 
@@ -250,15 +315,6 @@ class BuildTransaction(Transaction):
         self.prepared_transaction = complete_trans
 
 
-class BuildRawTransaction(BuildTransaction):
-
-    raw = True
-
-    @property
-    def base_command(self):
-        return ["cardano-cli", "transaction", "build-raw", "--alonzo-era"]
-
-
 class CalculateMinFeeTransaction(Transaction):
     def __init__(
         self,
@@ -295,44 +351,12 @@ class CalculateMinFeeTransaction(Transaction):
         self.prepared_transaction = command
 
 
-class SignTransaction(Transaction):
-    def __init__(self, transaction: Transaction, signing_key: str):
-        super().__init__(transaction.transaction_config, transaction.testnet)
-        self.raw_transaction = transaction.transaction_file
-        self.transaction_uuid = transaction.transaction_uuid
-        self.signing_key = signing_key
+class BuildRawTransaction(BuildTransaction, RawTransaction, SignAndSubmit):
+
+    raw = True
 
     @property
     def base_command(self):
-        return ["cardano-cli", "transaction", "sign"]
-
-    def prepare_transaction(self):
-        base_transaction = self.base_command
-        base_transaction.append("--tx-body-file")
-        base_transaction.append(self.raw_transaction)
-        base_transaction.append("--signing-key-file")
-        base_transaction.append(self.signing_key)
-        base_transaction.append("--out-file")
-        self.signed_file = os.path.join(tempdir.name, f"{self.transaction_uuid}.signed")
-        base_transaction.append(self.signed_file)
-        self.prepared_transaction = base_transaction
+        return ["cardano-cli", "transaction", "build-raw", "--alonzo-era"]
 
 
-class SubmitTransaction(Transaction):
-    def __init__(self, signed_transaction: SignTransaction):
-        super().__init__(
-            signed_transaction.transaction_config, signed_transaction.testnet
-        )
-        self.raw_transaction = signed_transaction.signed_file
-        self.transaction_uuid = signed_transaction.transaction_uuid
-
-    @property
-    def base_command(self):
-        return ["cardano-cli", "transaction", "submit"]
-
-    def prepare_transaction(self):
-        base_transaction = self.base_command
-        base_transaction = self.apply_blockchain(base_transaction)
-        base_transaction.append("--tx-file")
-        base_transaction.append(self.raw_transaction)
-        self.prepared_transaction = base_transaction
