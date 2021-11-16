@@ -9,7 +9,6 @@ from pydano.cardano_temp import tempdir
 from pydano.query.protocol_param import ProtocolParam
 from pydano.query.utxo import UTXOs
 
-
 class TransactionConfig:
     """
         This class is responsible to hold input and output utxos
@@ -181,74 +180,23 @@ class Transaction(CardanoCli):
         logging.debug(f"Running transaction: {' '.join(self.prepared_transaction)}")
         return self.run_command(self.prepared_transaction)
 
-class BuildTransaction(Transaction):
-
-    raw = False
-
-    def __init__(self, transaction_config: TransactionConfig, testnet: bool = True):
-        super().__init__(transaction_config, testnet)
-        self.protocol_file = ProtocolParam(testnet).protocol_params()
-
-    @property
-    def base_command(self):
-        return ["cardano-cli", "transaction", "build", "--alonzo-era"]
-
-    def build_base_transaction(self):
-        command = self.base_command
-        if not self.raw:
-            command = self.apply_blockchain(command)
-        else:
-            command.extend(['--fee', str(self.transaction_config.fees)])
-        command.extend(self.transaction_config.input_utxos_args())
-        command.extend(self.transaction_config.out_tx_args())
-        return command
-
-    def build_output_file(self, command, version='draft'):
-        command.append("--out-file")
-        transaction_file = os.path.join(tempdir.name, f"{self.transaction_uuid}.{version}")
-        self.transaction_file = transaction_file
-        command.append(transaction_file)
-        return command
-
-    def prepare_transaction(self):
-        base_transaction = self.build_base_transaction()
-        if not self.raw:
-            base_transaction.append('--change-address')
-            base_transaction.append(self.transaction_config.change_address)
-        base_transaction.append("--protocol-params-file")
-        base_transaction.append(self.protocol_file)
-        complete_trans =  self.build_output_file(base_transaction)
-        self.prepared_transaction =  complete_trans
-
-class BuildRawTransaction(BuildTransaction):
-
-    raw = True
-
-    @property
-    def base_command(self):
-        return ["cardano-cli", "transaction", "build-raw", "--alonzo-era"]
-
-class CalculateMinFeeTransaction(Transaction):
-
-    def __init__(self, transaction_config: TransactionConfig, raw_transaction: str, testnet: bool = True):
-        super().__init__(transaction_config, testnet)
-        self.raw_transaction = raw_transaction
-        self.protocol_file = ProtocolParam(testnet).protocol_params()
-
-    @property
-    def base_command(self):
-        return ["cardano-cli", "transaction", "calculate-min-fee"]
-
-    def prepare_transaction(self):
-        command = self.base_command
-        command.append('--tx-body-file')
-        command.append(self.raw_transaction)
-        len_output_txs = len(self.transaction_config.output_txs)
-        command.extend(['--tx-in-count', '1', '--tx-out-count', str(len_output_txs), '--witness-count', str(1 + len_output_txs)])
-        command = self.apply_blockchain(command)
-        command.append("--protocol-params-file")
-        command.append(self.protocol_file)
-        self.prepared_transaction = command
+class RawTransaction(Transaction):
+    transaction_file = None
+    def run_raw_transaction(self):
+        self.run_transaction()
+        if self.transaction_file == None:
+            raise ValueError("Intial transaction did not complete")
+        calc_fee = CalculateMinFeeTransaction(self.transaction_config, self.transaction_file, testnet=self.testnet)
+        fees_command_stdout = calc_fee.run_transaction()
+        min_fees = fees_command_stdout.stdout.split()[0].strip()
+        if type(min_fees) == bytes:
+            min_fees = min_fees.decode()
+        if not min_fees.isnumeric():
+            raise ValueError("Error getting minfees")
+        min_fees = int(min_fees)
+        self.transaction_config.fees = min_fees
+        self.run_transaction()
+        return self
 
 class SignTransaction(Transaction):
 
@@ -290,3 +238,85 @@ class SubmitTransaction(Transaction):
         base_transaction.append("--tx-file")
         base_transaction.append(self.raw_transaction)
         self.prepared_transaction = base_transaction
+
+class SignAndSubmit(Transaction):
+
+    def submit(self, signing_key):
+        print("Signing Transaction")
+        st = SignTransaction(self, signing_key)
+        st.run_transaction()
+        print("Submitting Transaction")
+        st = SubmitTransaction(st)
+        st.run_transaction()
+
+class BuildTransaction(Transaction, SignAndSubmit):
+
+    raw = False
+
+    def __init__(self, transaction_config: TransactionConfig, testnet: bool = True):
+        super().__init__(transaction_config, testnet)
+        self.protocol_file = ProtocolParam(testnet).protocol_params()
+
+    @property
+    def base_command(self):
+        return ["cardano-cli", "transaction", "build", "--alonzo-era"]
+
+    def build_base_transaction(self):
+        command = self.base_command
+        if not self.raw:
+            command = self.apply_blockchain(command)
+        else:
+            command.extend(['--fee', str(self.transaction_config.fees)])
+        command.extend(self.transaction_config.input_utxos_args())
+        command.extend(self.transaction_config.out_tx_args())
+        return command
+
+    def build_output_file(self, command, version='draft'):
+        command.append("--out-file")
+        transaction_file = os.path.join(tempdir.name, f"{self.transaction_uuid}.{version}")
+        self.transaction_file = transaction_file
+        command.append(transaction_file)
+        return command
+
+    def prepare_transaction(self):
+        base_transaction = self.build_base_transaction()
+        if not self.raw:
+            base_transaction.append('--change-address')
+            base_transaction.append(self.transaction_config.change_address)
+        base_transaction.append("--protocol-params-file")
+        base_transaction.append(self.protocol_file)
+        complete_trans =  self.build_output_file(base_transaction)
+        self.prepared_transaction =  complete_trans
+
+class CalculateMinFeeTransaction(Transaction):
+
+    def __init__(self, transaction_config: TransactionConfig, raw_transaction: str, testnet: bool = True):
+        super().__init__(transaction_config, testnet)
+        self.raw_transaction = raw_transaction
+        self.protocol_file = ProtocolParam(testnet).protocol_params()
+
+    @property
+    def base_command(self):
+        return ["cardano-cli", "transaction", "calculate-min-fee"]
+
+    def prepare_transaction(self):
+        command = self.base_command
+        command.append('--tx-body-file')
+        command.append(self.raw_transaction)
+        len_output_txs = len(self.transaction_config.output_txs)
+        command.extend(['--tx-in-count', '1', '--tx-out-count', str(len_output_txs), '--witness-count', str(1 + len_output_txs)])
+        command = self.apply_blockchain(command)
+        command.append("--protocol-params-file")
+        command.append(self.protocol_file)
+        self.prepared_transaction = command
+
+
+class BuildRawTransaction(BuildTransaction, RawTransaction, SignAndSubmit):
+
+    raw = True
+
+    @property
+    def base_command(self):
+        return ["cardano-cli", "transaction", "build-raw", "--alonzo-era"]
+
+
