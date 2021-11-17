@@ -9,9 +9,9 @@ import random
 
 import pandas as pd
 
+from pydano.transaction.transaction_config import TransactionConfig
 from pydano.blockfrost.top_holder import TopHolders
 from pydano.transaction.transaction import (
-    TransactionConfig,
     BuildTransaction,
     SignTransaction,
     SubmitTransaction,
