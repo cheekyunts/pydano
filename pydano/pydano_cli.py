@@ -6,8 +6,8 @@ import json
 
 from blockfrost import BlockFrostApi, ApiError, ApiUrls
 
+from pydano.transaction.transaction_config import TransactionConfig
 from pydano.transaction.transaction import (
-    TransactionConfig,
     BuildTransaction,
     SignTransaction,
     SubmitTransaction,
@@ -218,6 +218,7 @@ def main():
                 print(e)
                 pass
         exit(0)
+
 
 if __name__ == "__main__":
     main()

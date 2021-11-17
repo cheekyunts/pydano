@@ -1,8 +1,5 @@
-from pydano.transaction.transaction import (
-    BuildTransaction,
-    BuildRawTransaction,
-    TransactionConfig,
-)
+from pydano.transaction.transaction_config import TransactionConfig
+from pydano.transaction.transaction import BuildTransaction, BuildRawTransaction
 from pydano.transaction.policy_transaction import PolicyIDTransaction
 
 
