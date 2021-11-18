@@ -23,24 +23,22 @@ def do_receive_mint(args, blockfrost_api):
     utxos, _, _ = query_utxo.utxos(args.input_address)
     for utxo in utxos:
         try:
-            do_signing = False
             utxo_hash, utxo_index, utxo_amount = (
                 utxo["utxo_hash"],
                 utxo["utxo_index"],
                 utxo["utxo_amount"],
             )
             # 0.16 This is to cover the transaction fees.
-            tc = TransactionConfig(
-                args.in_address,
+            tc = MintingConfig(
+                args.minting_script_file,
+                args.input_address,
                 args.min_utxo,
                 testnet=not args.mainnet,
+                args.metadata_json_file,
                 min_change_utxo=args.min_change_utxo,
             )
             tc.add_tx_in(utxo_hash, utxo_index)
             if utxo_amount > (args.token_cost + args.min_utxo):
-                policyID = PolicyIDTransaction(not args.mainnet).policyID(
-                    args.minting_script
-                )
                 send_amount = utxo_amount - args.token_cost
                 address = blockfrost_api.transaction_utxos(utxo_hash).inputs[0].address
                 token_name = args.token_name
@@ -48,13 +46,8 @@ def do_receive_mint(args, blockfrost_api):
                 tc.add_tx_out(
                     args.receiver_wallet, "lovelace", args.token_cost, fee_payer=True
                 )
-                tc.add_mint(address, policyID, token_name)
-                bt = MintRawTransaction(
-                    tc,
-                    minting_script_file=args.minting_script,
-                    metadata_json_file=args.metadata_json,
-                    testnet=not args.mainnet,
-                )
+                tc.add_mint(address, token_name)
+                bt = BuildRawTransaction(tc, testnet=not args.mainnet)
                 bt.run_raw_transaction()
                 bt.submit(args.signing_key)
             elif utxo_amount > args.transaction_cost + 999978:
@@ -64,16 +57,8 @@ def do_receive_mint(args, blockfrost_api):
                 bt = BuildRawTransaction(tc, testnet=not args.mainnet)
                 bt.run_raw_transaction()
                 bt.submit(args.signing_key)
-                do_signing = True
             else:
                 print(f"Ignoring {utxo_hash}#{utxo_index} with amount {utxo_amount}")
-            if do_signing:
-                print("Signing Transaction")
-                st = SignTransaction(bt, args.signing_key)
-                st.run_transaction()
-                print("Submitting Transaction")
-                st = SubmitTransaction(st)
-                st.run_transaction()
         except Exception as e:
             print(e)
 
@@ -174,14 +159,14 @@ def main():
     in_address = args.input_address
     os.environ["CARDANO_NODE_SOCKET_PATH"] = args.node_socket
 
-    tc = TransactionConfig(
-        in_address,
-        args.min_utxo,
-        testnet=not args.mainnet,
-        min_change_utxo=args.min_change_utxo,
-    )
     if args.pay:
         print("Doing Pay Transaction")
+        tc = TransactionConfig(
+            in_address,
+            args.min_utxo,
+            testnet=not args.mainnet,
+            min_change_utxo=args.min_change_utxo,
+        )
         tc.add_input_utxos(in_address)
         all_payee = json.load(open(args.pay, "r"))
         for payee in all_payee:
@@ -195,19 +180,21 @@ def main():
         bt.submit(args.signing_key)
     elif args.mint:
         print("Doing Mint Transaction")
-        tc.add_input_utxos(in_address)
-        bt = MintRawTransaction(
-            tc,
-            minting_script_file=args.minting_script,
-            metadata_json_file=args.metadata_json,
+        mc = MintingConfig(
+            args.minting_script,
+            in_address,
+            args.min_utxo,
             testnet=not args.mainnet,
+            metadata_json_file=args.metadata_json,
+            min_change_utxo=args.min_change_utxo,
         )
+        mc.add_input_utxos(in_address)
         all_payee = json.load(open(args.mint, "r"))
         for payee in all_payee:
             address = payee["address"]
             token_name = payee["token_name"]
-            tc.add_mint(address, bt.policyID, token_name)
-        bt.transaction_config = tc
+            mc.add_mint(address, token_name)
+        bt = BuildRawTransaction(mc, testnet=not args.mainnet)
         bt.run_raw_transaction()
         bt.submit(args.signing_key)
     elif args.receive_mint:

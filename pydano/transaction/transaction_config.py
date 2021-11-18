@@ -6,6 +6,10 @@ from pydano.query.utxo import UTXOs
 
 
 class TransactionConfig:
+
+    # controls addition of minting arguments in built command.
+    minting = False
+
     """
     This class is responsible to hold input and output utxos
     which is passed around the transaction processing fees.
@@ -81,12 +85,6 @@ class TransactionConfig:
             self.fee_payer_address = out_address
         return len(self.output_txs)
 
-    def add_mint(self, out_address: str, policyid: str, token_name: str):
-        mint_token_name = f"{policyid}.{token_name}"
-        out = {"out_address": out_address, "name": mint_token_name, "quantity": 1}
-        self.output_txs[out_address].append(out)
-        self.mints.append(mint_token_name)
-
     def input_utxos_args(self):
         command_args = []
         assert len(self.input_utxos) > 0
@@ -150,27 +148,4 @@ class TransactionConfig:
             for key, value in self.available_tokens.items():
                 leftover_out_config += "+" + str(value) + " " + str(key)
             command_args.append(self.change_address + leftover_out_config)
-        return command_args
-
-    def mint_args(self, minting_script_file, metadata_json_file=None):
-        command_args = ["--mint"]
-        mint_args = ""
-        first_transaction = True
-        for i in self.mints:
-            if first_transaction:
-                first_transaction = False
-            else:
-                mint_args += "+"
-            mint_args += f"1 {i}"
-        command_args.append(mint_args)
-        command_args.append("--minting-script-file")
-        command_args.append(minting_script_file)
-        if metadata_json_file:
-            command_args.append("--metadata-json-file")
-            command_args.append(metadata_json_file)
-        script = json.load(open(minting_script_file, "r"))
-        if "slot" in script["scripts"][0]:
-            invalid_hereafter_slot = script["scripts"][0]["slot"]
-            command_args.append("--invalid-hereafter")
-            command_args.append(str(invalid_hereafter_slot))
         return command_args
