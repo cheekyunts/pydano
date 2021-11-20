@@ -20,10 +20,12 @@ class MintingConfig(TransactionConfig):
         super().__init__(change_address, min_utxo, testnet, min_change_utxo)
         if not minting_script_file:
             raise ValueError("Minting requires Minting script")
-        self.miniting_script_file = minting_script_file
+        self.minting_script_file = minting_script_file
         self.metadata_json_file = metadata_json_file
         self.minting_metadata = []
-        self.all_metadata_content = json.load(open(metadata_json_file, "r"))
+        self.all_metadata_content = (
+            json.load(open(metadata_json_file, "r")) if metadata_json_file else {}
+        )
         self.policyID = PolicyIDTransaction(testnet).policyID(self.minting_script_file)
 
     def add_mint(self, out_address: str, token_name: str, token_metadata: dict = None):
@@ -73,7 +75,7 @@ class MintingConfig(TransactionConfig):
         if metadata_json_file:
             command_args.append("--metadata-json-file")
             command_args.append(metadata_json_file)
-        script = json.load(open(minting_script_file, "r"))
+        script = json.load(open(self.minting_script_file, "r"))
         if "slot" in script["scripts"][0]:
             invalid_hereafter_slot = script["scripts"][0]["slot"]
             command_args.append("--invalid-hereafter")

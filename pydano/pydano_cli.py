@@ -12,8 +12,8 @@ from pydano.transaction.transaction import (
     SignTransaction,
     SubmitTransaction,
     BuildRawTransaction,
+    MintRawTransaction,
 )
-from pydano.transaction.mint_transaction import MintTransaction, MintRawTransaction
 from pydano.transaction.policy_transaction import PolicyIDTransaction
 from pydano.query.utxo import UTXOs
 
@@ -34,7 +34,7 @@ def do_receive_mint(args, blockfrost_api):
                 args.input_address,
                 args.min_utxo,
                 testnet=not args.mainnet,
-                args.metadata_json_file,
+                metadata_json=args.metadata_json_file,
                 min_change_utxo=args.min_change_utxo,
             )
             tc.add_tx_in(utxo_hash, utxo_index)
@@ -47,7 +47,7 @@ def do_receive_mint(args, blockfrost_api):
                     args.receiver_wallet, "lovelace", args.token_cost, fee_payer=True
                 )
                 tc.add_mint(address, token_name)
-                bt = BuildRawTransaction(tc, testnet=not args.mainnet)
+                bt = MintRawTransaction(tc, testnet=not args.mainnet)
                 bt.run_raw_transaction()
                 bt.submit(args.signing_key)
             elif utxo_amount > args.transaction_cost + 999978:
@@ -194,7 +194,7 @@ def main():
             address = payee["address"]
             token_name = payee["token_name"]
             mc.add_mint(address, token_name)
-        bt = BuildRawTransaction(mc, testnet=not args.mainnet)
+        bt = MintRawTransaction(mc, testnet=not args.mainnet)
         bt.run_raw_transaction()
         bt.submit(args.signing_key)
     elif args.receive_mint:

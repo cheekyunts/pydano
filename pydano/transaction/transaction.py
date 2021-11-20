@@ -77,8 +77,14 @@ class SignTransaction(Transaction):
         base_transaction = self.base_command
         base_transaction.append("--tx-body-file")
         base_transaction.append(self.raw_transaction)
-        base_transaction.append("--signing-key-file")
-        base_transaction.append(self.signing_key)
+        if type(self.signing_key) == list:
+            for key in self.signing_key:
+                base_transaction.append("--signing-key-file")
+                base_transaction.append(key)
+
+        else:
+            base_transaction.append("--signing-key-file")
+            base_transaction.append(self.signing_key)
         base_transaction.append("--out-file")
         self.signed_file = os.path.join(tempdir.name, f"{self.transaction_uuid}.signed")
         base_transaction.append(self.signed_file)
@@ -118,6 +124,7 @@ class SignAndSubmit:
 class BuildTransaction(Transaction, SignAndSubmit):
 
     raw = False
+    minting = False
 
     def __init__(
         self,
@@ -202,6 +209,16 @@ class CalculateMinFeeTransaction(Transaction):
 class BuildRawTransaction(BuildTransaction, RawTransaction, SignAndSubmit):
 
     raw = True
+
+    @property
+    def base_command(self):
+        return ["cardano-cli", "transaction", "build-raw", "--alonzo-era"]
+
+
+class MintRawTransaction(BuildTransaction, RawTransaction, SignAndSubmit):
+
+    raw = True
+    minting = True
 
     @property
     def base_command(self):
