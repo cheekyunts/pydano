@@ -1,15 +1,21 @@
 import os
 import uuid
 import logging
+from typing import Union
 
 from pydano.cardano_cli import CardanoCli
 from pydano.cardano_temp import tempdir
 from pydano.query.protocol_param import ProtocolParam
 from pydano.transaction.transaction_config import TransactionConfig
+from pydano.transaction.miniting_config import MintingConfig
 
 
 class Transaction(CardanoCli):
-    def __init__(self, transaction_config: TransactionConfig, testnet: bool = True):
+    def __init__(
+        self,
+        transaction_config: Union[TransactionConfig, MintingConfig],
+        testnet: bool = True,
+    ):
         self.transaction_config = transaction_config
         self.transaction_uuid = str(uuid.uuid4())
         super().__init__(testnet)
@@ -71,8 +77,14 @@ class SignTransaction(Transaction):
         base_transaction = self.base_command
         base_transaction.append("--tx-body-file")
         base_transaction.append(self.raw_transaction)
-        base_transaction.append("--signing-key-file")
-        base_transaction.append(self.signing_key)
+        if type(self.signing_key) == list:
+            for key in self.signing_key:
+                base_transaction.append("--signing-key-file")
+                base_transaction.append(key)
+
+        else:
+            base_transaction.append("--signing-key-file")
+            base_transaction.append(self.signing_key)
         base_transaction.append("--out-file")
         self.signed_file = os.path.join(tempdir.name, f"{self.transaction_uuid}.signed")
         base_transaction.append(self.signed_file)
@@ -112,8 +124,13 @@ class SignAndSubmit:
 class BuildTransaction(Transaction, SignAndSubmit):
 
     raw = False
+    minting = False
 
-    def __init__(self, transaction_config: TransactionConfig, testnet: bool = True):
+    def __init__(
+        self,
+        transaction_config: Union[TransactionConfig, MintingConfig],
+        testnet: bool = True,
+    ):
         super().__init__(transaction_config, testnet)
         self.protocol_file = ProtocolParam(testnet).protocol_params()
 
@@ -129,6 +146,8 @@ class BuildTransaction(Transaction, SignAndSubmit):
             command.extend(["--fee", str(self.transaction_config.fees)])
         command.extend(self.transaction_config.input_utxos_args())
         command.extend(self.transaction_config.out_tx_args())
+        if self.minting:
+            command.extend(self.transaction_config.mint_args())
         return command
 
     def build_output_file(self, command, version="draft"):
@@ -154,7 +173,7 @@ class BuildTransaction(Transaction, SignAndSubmit):
 class CalculateMinFeeTransaction(Transaction):
     def __init__(
         self,
-        transaction_config: TransactionConfig,
+        transaction_config: Union[TransactionConfig, MintingConfig],
         raw_transaction: str,
         testnet: bool = True,
     ):
@@ -190,6 +209,16 @@ class CalculateMinFeeTransaction(Transaction):
 class BuildRawTransaction(BuildTransaction, RawTransaction, SignAndSubmit):
 
     raw = True
+
+    @property
+    def base_command(self):
+        return ["cardano-cli", "transaction", "build-raw", "--alonzo-era"]
+
+
+class MintRawTransaction(BuildTransaction, RawTransaction, SignAndSubmit):
+
+    raw = True
+    minting = True
 
     @property
     def base_command(self):
