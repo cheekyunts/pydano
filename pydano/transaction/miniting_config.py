@@ -1,7 +1,11 @@
+import os
 import json
+import tempfile
+import uuid
 
 from pydano.transaction.transaction_config import TransactionConfig
 from pydano.transaction.policy_transaction import PolicyIDTransaction
+from pydano.cardano_temp import tempdir
 
 
 class MintingConfig(TransactionConfig):
@@ -30,11 +34,11 @@ class MintingConfig(TransactionConfig):
 
     def add_mint(self, out_address: str, token_name: str, token_metadata: dict = None):
         if token_metadata:
-            assert token_metadata["name"] == token_name
+            # assert token_metadata["asset_name"] == token_name
             self.minting_metadata.append(token_metadata)
         elif token_name in self.all_metadata_content:
             metadata = self.all_metadata_content[token_name]
-            assert metadata["name"] == token_name
+            # assert metadata["name"] == token_name
             self.minting_metadata.append(metadata)
         mint_token_name = f"{self.policyID}.{token_name}"
         out = {"out_address": out_address, "name": mint_token_name, "quantity": 1}
@@ -45,7 +49,7 @@ class MintingConfig(TransactionConfig):
     def get_metadata_file(self):
         if not self.minting_metadata:
             return None
-        tmp_metadata_file = os.path.join(tempdir.name, f"{str(uuid4.uuid())}.json")
+        tmp_metadata_file = os.path.join(tempdir.name, f"{str(uuid.uuid4())}.json")
         final_metadata = {
             "721": {
                 f"self.policyID": {
