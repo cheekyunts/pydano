@@ -103,7 +103,7 @@ class TopHolders:
                         print(f"Cannot find the address: {holder}")
 
             else:
-                print("No address returned", asset, address)
+                print("No address returned", asset, addresses)
 
     def get_all_holders(self):
         holders = []
