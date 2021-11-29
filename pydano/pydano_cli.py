@@ -16,6 +16,7 @@ from pydano.transaction.transaction import (
 )
 from pydano.transaction.policy_transaction import PolicyIDTransaction
 from pydano.query.utxo import UTXOs
+from pydano.addresses.generate_address import Address
 
 
 def do_receive_mint(args, blockfrost_api):
@@ -129,6 +130,17 @@ def parse_args():
     parser.add_argument(
         "--blockfrost_key", help="Api key of blockfrost", type=str, default=None
     )
+
+    parser.add_argument(
+        "--generate_address", help="Generate Address files", action="store_true"
+    )
+
+    parser.add_argument(
+        "--dirname", help="Directory to store the keys in", default=None
+    )
+
+    parser.add_argument("--key_name", help="Key name", default=None)
+
     args = parser.parse_args()
     return args
 
@@ -149,6 +161,16 @@ def main():
         blockfrost_api = BlockFrostApi(
             project_id=args.blockfrost_key, base_url=blockfrost_base_url
         )
+
+    if args.generate_address:
+
+        if not args.dirname:
+            raise ValueError("Expected dirname argument for generating the address")
+        addr = Address(args.dirname, args.key_name, not args.mainnet)
+        addr.create_address()
+        addr.generate_address()
+        print("Finished generating the address, exiting")
+        return
 
     if not args.input_address:
         raise ValueError("Except to have input_address to do transaction")

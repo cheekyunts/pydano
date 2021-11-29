@@ -28,21 +28,6 @@ class GenerateKeyPair(CardanoCli):
     def base_command(self):
         return ["cardano-cli", "address"]
 
-    def generate_address(self):
-        current_command = self.base_command
-        current_command.append("build")
-        current_command.append("--payment-verification-key-file")
-        current_command.append(self.verification_file)
-        current_command.append("--out-file")
-        address_file = os.path.join(tempdir.name, f"{self.key_name}.addr")
-        current_command.append(address_file)
-        current_command = self.apply_blockchain(current_command)
-        logging.debug(f"Running command: {current_command}")
-        self.run_command(current_command)
-        final_address = open(address_file, "r").read().strip()
-        logging.info(f"Generated keys: {final_address}")
-        return final_address
-
 
 class Address(GenerateKeyPair):
 
@@ -67,4 +52,35 @@ class Address(GenerateKeyPair):
 
     def create_address(self):
         self.generate_keypair()
-        return self.generate_address()
+        address = self.generate_address()
+        keyhash = self.generate_keyhash()
+        return address
+
+    def generate_address(self):
+        current_command = self.base_command
+        current_command.append("build")
+        current_command.append("--payment-verification-key-file")
+        current_command.append(self.verification_file)
+        current_command.append("--out-file")
+        address_file = os.path.join(self.dirname, f"{self.key_name}.addr")
+        current_command.append(address_file)
+        current_command = self.apply_blockchain(current_command)
+        logging.debug(f"Running command: {current_command}")
+        self.run_command(current_command)
+        final_address = open(address_file, "r").read().strip()
+        logging.info(f"Generated keys: {final_address}")
+        return final_address
+
+    def generate_keyhash(self):
+        current_command = self.base_command
+        current_command.append("key-hash")
+        current_command.append("--payment-verification-key-file")
+        current_command.append(self.verification_file)
+        current_command.append("--out-file")
+        keyhash_file = os.path.join(self.dirname, f"{self.key_name}.keyhash")
+        current_command.append(keyhash_file)
+        logging.debug(f"Running command: {current_command}")
+        self.run_command(current_command)
+        final_keyhash = open(keyhash_file, "r").read().strip()
+        logging.info(f"Generated keyhash: {final_keyhash}")
+        return final_keyhash
