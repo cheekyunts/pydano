@@ -184,7 +184,7 @@ def main():
     if args.generate_script:
 
         if not address_generated:
-            if not args.dirname or not args.keyname:
+            if not args.dirname or not args.key_name:
                 raise FileNotFoundError(
                     "Unable to find the keyname and dirname to generate script"
                 )
