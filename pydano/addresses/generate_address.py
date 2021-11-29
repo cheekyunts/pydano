@@ -111,7 +111,7 @@ class Address(GenerateKeyPair):
         self.run_command(current_command)
         self.read_keyhash()
         logging.info(f"Generated keyhash: {self.keyhash_file}")
-        return final_keyhash
+        return self.keyhash
 
     def read_keyhash(self):
         self.keyhash = open(self.keyhash_file, "r").read().strip()

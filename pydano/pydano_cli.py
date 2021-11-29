@@ -168,7 +168,6 @@ def main():
             raise ValueError("Expected dirname argument for generating the address")
         addr = Address(args.dirname, args.key_name, not args.mainnet)
         addr.create_address()
-        addr.generate_address()
         print("Finished generating the address, exiting")
         return
 
