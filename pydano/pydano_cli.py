@@ -18,6 +18,7 @@ from pydano.transaction.policy_transaction import PolicyIDTransaction
 from pydano.query.utxo import UTXOs
 from pydano.addresses.generate_address import Address
 from pydano.scripts.minting_script import MintingScript
+from pydano.transaction.miniting_config import MintingConfig
 
 
 def do_receive_mint(args, blockfrost_api):
@@ -70,7 +71,9 @@ def parse_args():
     parser.add_argument(
         "--input_address", help="Address of the input wallet", type=str, default=None
     )
-    parser.add_argument("--signing_key", help="Signing Key", type=str, default=None)
+    parser.add_argument(
+        "--signing_key", help="Signing Key", type=str, nargs="+", default=None
+    )
     parser.add_argument(
         "--log_level", help="Set log level to", type=str, default="INFO"
     )
