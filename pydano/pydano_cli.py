@@ -17,6 +17,7 @@ from pydano.transaction.transaction import (
 from pydano.transaction.policy_transaction import PolicyIDTransaction
 from pydano.query.utxo import UTXOs
 from pydano.addresses.generate_address import Address
+from pydano.scripts.minting_script import MintingScript
 
 
 def do_receive_mint(args, blockfrost_api):
@@ -141,6 +142,12 @@ def parse_args():
 
     parser.add_argument("--key_name", help="Key name", default=None)
 
+    parser.add_argument(
+        "--generate_script", help="Generate minting script.", action="store_true"
+    )
+
+    parser.add_argument("--locking_slot", help="Locking slot of the script.", type=int)
+
     args = parser.parse_args()
     return args
 
@@ -162,6 +169,7 @@ def main():
             project_id=args.blockfrost_key, base_url=blockfrost_base_url
         )
 
+    address_generated = False
     if args.generate_address:
 
         if not args.dirname:
@@ -169,6 +177,23 @@ def main():
         addr = Address(args.dirname, args.key_name, not args.mainnet)
         addr.create_address()
         print("Finished generating the address, exiting")
+        address_generated = True
+        if not args.generate_script:
+            return
+
+    if args.generate_script:
+
+        if not address_generated:
+            if not args.dirname or not args.keyname:
+                raise FileNotFoundError(
+                    "Unable to find the keyname and dirname to generate script"
+                )
+            addr = Address(args.dirname, args.key_name, not args.mainnet)
+            addr.load()
+        minting_script = MintingScript(
+            addr, args.locking_slot, file_name=args.minting_script
+        )
+        print(f"Minting script file is {minting_script.policy_script_file}")
         return
 
     if not args.input_address:
