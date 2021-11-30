@@ -197,6 +197,7 @@ def main():
             addr, args.locking_slot, file_name=args.minting_script
         )
         print(f"Minting script file is {minting_script.policy_script_file}")
+        print(f"Minting policy id is {minting_script.policy_id}")
         return
 
     if not args.input_address:
