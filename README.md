@@ -7,7 +7,7 @@ Installing
 Install using `pip`
 
 ```
-pip install pydano==0.0.6
+pip install pydano
 ```
 
 Sending ADA from one wallet to other wallets
