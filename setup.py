@@ -19,7 +19,14 @@ setuptools.setup(
     package_dir={"": "pydano"},
     packages=setuptools.find_packages(
         exclude=["scripts"],
-        include=["pydano", "pydano.query", "pydano.transaction", "pydano.blockfrost"],
+        include=[
+            "pydano",
+            "pydano.query",
+            "pydano.transaction",
+            "pydano.blockfrost",
+            "pydano.addresses",
+            "pydano.scripts",
+        ],
         where="pydano",
     ),
     entry_points={"console_scripts": ["pydano-cli=pydano.pydano_cli:main"]},
