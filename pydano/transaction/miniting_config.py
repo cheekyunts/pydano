@@ -80,8 +80,9 @@ class MintingConfig(TransactionConfig):
             command_args.append("--metadata-json-file")
             command_args.append(metadata_json_file)
         script = json.load(open(self.minting_script_file, "r"))
-        if "slot" in script["scripts"][0]:
-            invalid_hereafter_slot = script["scripts"][0]["slot"]
+        all_locking = list(filter(lambda x: "slot" in x, script["scripts"]))
+        if "slot" in all_locking[0]:
+            invalid_hereafter_slot = all_locking[0]["slot"]
             command_args.append("--invalid-hereafter")
             command_args.append(str(invalid_hereafter_slot))
         return command_args

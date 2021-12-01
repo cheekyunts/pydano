@@ -145,7 +145,7 @@ class TransactionConfig:
                 raise ValueError("Not enough money for returning the change")
             command_args.append("--tx-out")
             leftover_out_config = "+" + str(pending_lovlace)
-            for key, value in self.available_tokens.items():
+            for key, value in available_tokens.items():
                 leftover_out_config += "+" + str(value) + " " + str(key)
             command_args.append(self.change_address + leftover_out_config)
         return command_args
