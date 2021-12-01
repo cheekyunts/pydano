@@ -31,6 +31,11 @@ class MintingScript:
             tmp_file = self.file_name
         else:
             tmp_file = get_temp_file(prefix=".minting_script")
+            self.file_name = tmp_file
+        return self.file_name
+
+    def generate_scriptfile(self):
+        tmp_file = self.policy_script_file
         script = self.policy_script
         with open(tmp_file, "w") as f:
             json.dump(script, f, indent=4)

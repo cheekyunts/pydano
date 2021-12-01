@@ -196,6 +196,7 @@ def main():
         minting_script = MintingScript(
             addr, args.locking_slot, file_name=args.minting_script
         )
+        minting_script.generate_scriptfile()
         print(f"Minting script file is {minting_script.policy_script_file}")
         print(f"Minting policy id is {minting_script.policy_id}")
         return
