@@ -52,8 +52,8 @@ class MintingConfig(TransactionConfig):
         tmp_metadata_file = os.path.join(tempdir.name, f"{str(uuid.uuid4())}.json")
         final_metadata = {
             "721": {
-                f"self.policyID": {
-                    mint_token["name"]: mint_token
+                f"{self.policyID}": {
+                    mint_token["asset_name"]: mint_token
                     for mint_token in self.minting_metadata
                 }
             }
@@ -81,7 +81,7 @@ class MintingConfig(TransactionConfig):
             command_args.append(metadata_json_file)
         script = json.load(open(self.minting_script_file, "r"))
         all_locking = list(filter(lambda x: "slot" in x, script["scripts"]))
-        if "slot" in all_locking[0]:
+        if all_locking and "slot" in all_locking[0]:
             invalid_hereafter_slot = all_locking[0]["slot"]
             command_args.append("--invalid-hereafter")
             command_args.append(str(invalid_hereafter_slot))
