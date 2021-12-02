@@ -95,7 +95,6 @@ if len(args.policy_id) > 1:
     top_holders.c = functools.reduce(lambda a, b: a & b, holders)
 holders = top_holders.get_all_holders()
 
-print(holders)
 df = pd.DataFrame(holders)
 df.to_csv("top_holders.csv")
 if args.exclude_address:
