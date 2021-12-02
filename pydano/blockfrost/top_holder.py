@@ -123,4 +123,4 @@ class TopHolders:
     def get_payment_address(self, stake_address):
         if stake_address in self.stake_to_payment_address:
             return self.stake_to_payment_address[stake_address]
-        raise ValueError("Stake address not found in cache")
+        raise ValueError(f"Stake address not found in cache: {stake_address}")

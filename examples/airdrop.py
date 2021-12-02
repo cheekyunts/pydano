@@ -94,7 +94,7 @@ for idx, row in df.iterrows():
     addr = row["stake_address"]
     raffle_addresses.extend([addr] * count)
 print(
-    "Total addresses: {len(raffle_addresses)}, unique addresses: {len(set(raffle_addresses))}"
+    f"Total addresses: {len(raffle_addresses)}, unique addresses: {len(set(raffle_addresses))}"
 )
 print(f"Doing airdrop from: {len(raffle_addresses)}")
 addresses = random.choices(raffle_addresses, k=args.sample_airdrop)
@@ -108,7 +108,7 @@ if args.token_name:
     for i in addresses:
         i["token_name"] = args.token_name
 
-json.dump(addresses, open("airdrop_pydano_transaction.json"), indent=4)
+json.dump(addresses, open("airdrop_pydano_transaction.json", "w"), indent=4)
 
 print(f"Do airdrop to:", addresses)
 print("Holders found", len(holders))
