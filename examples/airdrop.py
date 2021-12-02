@@ -92,6 +92,8 @@ if args.min_holdings:
 for idx, row in df.iterrows():
     count = row["holding_count"] if args.allow_multiple else 1
     addr = row["stake_address"]
+    if not addr:
+        continue
     raffle_addresses.extend([addr] * count)
 print(
     f"Total addresses: {len(raffle_addresses)}, unique addresses: {len(set(raffle_addresses))}"
