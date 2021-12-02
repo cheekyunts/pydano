@@ -36,6 +36,9 @@ class TopHolders:
         self.c = Counter()
         self.stake_to_payment_address = defaultdict(list)
 
+    def get_holders_counter(self):
+        return self.c
+
     def get_asset(self, asset_id):
         if self.use_cache and os.path.isfile(f"cache/{asset_id}.json"):
             address = json.load(open(f"cache/{asset_id}.json", "r"))
@@ -82,8 +85,13 @@ class TopHolders:
                 headers=self.project_headers,
                 params={"page": page},
             )
-            assets = res.json()
-            self.all_assets.extend(assets)
+            if res.status_code == 200:
+                assets = res.json()
+                if len(assets) == 0:
+                    return
+                self.all_assets.extend(assets)
+            else:
+                raise Exception(f"Unable to get assets : {str(res)}")
 
     def query_assets(self):
         print("Total Assets: ", len(self.all_assets))
@@ -115,4 +123,4 @@ class TopHolders:
     def get_payment_address(self, stake_address):
         if stake_address in self.stake_to_payment_address:
             return self.stake_to_payment_address[stake_address]
-        raise ValueError("Stake address not found in cache")
+        raise ValueError(f"Stake address not found in cache: {stake_address}")
