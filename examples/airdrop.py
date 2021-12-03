@@ -99,7 +99,7 @@ print(
     f"Total addresses: {len(raffle_addresses)}, unique addresses: {len(set(raffle_addresses))}"
 )
 print(f"Doing airdrop from: {len(raffle_addresses)}")
-addresses = random.choices(raffle_addresses, k=args.sample_airdrop)
+addresses = random.sample(raffle_addresses, args.sample_airdrop)
 addresses = list(
     map(
         lambda x: {"stake": x, "address": top_holders.get_payment_address(x)[0]},
