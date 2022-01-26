@@ -20,6 +20,8 @@ from pydano.addresses.generate_address import Address
 from pydano.scripts.minting_script import MintingScript
 from pydano.transaction.miniting_config import MintingConfig
 
+from pydano.features.empty_wallet import EmptyWallet
+
 
 def do_receive_mint(args, blockfrost_api):
     query_utxo = UTXOs(testnet=not args.mainnet)
@@ -106,6 +108,12 @@ def parse_args():
     parser.add_argument(
         "--mint",
         help="A json file with list tokens to mint and address to send them to.",
+        type=str,
+        default=None,
+    )
+    parser.add_argument(
+        "--empty_wallet",
+        help="Send everything from this address to a new wallet",
         type=str,
         default=None,
     )
@@ -256,6 +264,15 @@ def main():
                 print(e)
                 pass
         exit(0)
+    elif args.empty_wallet:
+        empty_wallet = EmptyWallet(
+            args.in_address,
+            args.empty_wallet,
+            args.min_utxo,
+            args.min_change_utxo,
+            args.mainnet,
+        )
+        empty_wallet.run(args.signing_key)
 
 
 if __name__ == "__main__":

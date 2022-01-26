@@ -95,6 +95,7 @@ class Address(GenerateKeyPair):
 
     def read_address(self):
         self.address = open(self.address_file, "r").read().strip()
+        return self.address
 
     def generate_keyhash(self):
         if os.path.isfile(self.keyhash_file):
