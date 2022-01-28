@@ -42,6 +42,7 @@ parser.add_argument(
     "--use_cache", help="Use cache instead of running", action="store_true"
 )
 parser.add_argument("--mainnet", help="Use Mainnet", action="store_true")
+parser.add_argument("--only_naked", help="Use Mainnet", action="store_true")
 parser.add_argument(
     "--exclude_address", help="Exclude Addresses", type=str, default=None
 )
@@ -70,16 +71,54 @@ if len(args.policy_id) == 0:
     raise ValueError("Need atleast one policy_id to do the airdrop")
 
 holders = []
+
+
+def naked_unts(asset_obj):
+    if not asset_obj:
+        return False
+    if "onchain_metadata" not in asset_obj:
+        return False
+    metadata = asset_obj["onchain_metadata"]
+    # Not a valid metadata
+    if not metadata or "unt" not in metadata:
+        return False
+    forbidden_for_naked = [
+        "face",
+        "eyes",
+        "hat",
+        "accessory",
+        "righty",
+        "lefty",
+        "mouth",
+    ]
+    return not any([i in metadata for i in forbidden_for_naked])
+
+
 for policy_id in args.policy_id:
     top_holders = TopHolders(
         policy_id, args.api_key, args.total_pages, args.use_cache, args.mainnet
     )
     top_holders.gather_assets()
-    top_holders.query_assets()
+    if args.only_naked:
+        top_holders.query_assets(naked_unts)
+    else:
+        top_holders.query_assets()
     holders.append(top_holders.get_holders_counter())
 if len(args.policy_id) > 1:
     top_holders.c = functools.reduce(lambda a, b: a & b, holders)
 holders = top_holders.get_all_holders()
+
+if args.only_naked:
+    for holder in holders:
+        held_unts = []
+        print(holder)
+        for asset_id in holder["assets_held"]:
+            asset = top_holders.get_asset(asset_id)
+            unt = asset["onchain_metadata"]["unt"]
+            name = asset["onchain_metadata"]["name"]
+            held_unts.append({"unt": unt, "name": name})
+        holder["held_unts"] = held_unts
+        holder["address"] = top_holders.get_payment_address(holder["stake_address"])[0]
 
 df = pd.DataFrame(holders)
 df.to_csv("top_holders.csv")
