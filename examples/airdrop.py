@@ -64,6 +64,8 @@ parser.add_argument(
 args = parser.parse_args()
 
 logging.getLogger().setLevel(args.log_level)
+
+holders_file_suffix = ""
 if not args.total_pages:
     raise Exception("Give total_pages")
 
@@ -99,6 +101,7 @@ for policy_id in args.policy_id:
         policy_id, args.api_key, args.total_pages, args.use_cache, args.mainnet
     )
     top_holders.gather_assets()
+    holders_file_suffix += "_" + policy_id + "_"
     if args.only_naked:
         top_holders.query_assets(naked_unts)
     else:
@@ -109,6 +112,7 @@ if len(args.policy_id) > 1:
 holders = top_holders.get_all_holders()
 
 if args.only_naked:
+    holders_file_suffix += "_" + "only_naked" + "_"
     for holder in holders:
         held_unts = []
         print(holder)
@@ -121,7 +125,8 @@ if args.only_naked:
         holder["address"] = top_holders.get_payment_address(holder["stake_address"])[0]
 
 df = pd.DataFrame(holders)
-df.to_csv("top_holders.csv")
+df.to_csv(f"top_holders_{holders_file_suffix}.csv")
+df.to_pickle("top_holders_{holders_file_suffix}.pkl")
 if args.exclude_address:
     exclude_addresses = json.load(open(args.exclude_address, "r"))
     df = df[~df.stake_address.isin(exclude_addresses)]
