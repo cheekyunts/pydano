@@ -7,8 +7,11 @@ from collections import defaultdict, Counter
 
 
 class TopHolders:
-    assets_url = {
+    asset_address_url = {
         "mainnet": "https://cardano-mainnet.blockfrost.io/api/v0/assets/{asset_id}/addresses"
+    }
+    asset_url = {
+        "mainnet": "https://cardano-mainnet.blockfrost.io/api/v0/assets/{asset_id}/"
     }
     list_assts_url = {
         "mainnet": "https://cardano-mainnet.blockfrost.io/api/v0/assets/policy/{policy_id}"
@@ -35,15 +38,29 @@ class TopHolders:
         self.all_assets = []
         self.c = Counter()
         self.stake_to_payment_address = defaultdict(list)
+        self.assets_held = defaultdict(list)
 
     def get_holders_counter(self):
         return self.c
 
     def get_asset(self, asset_id):
+        if self.use_cache and os.path.isfile(f"cache/main_{asset_id}.json"):
+            address = json.load(open(f"cache/main_{asset_id}.json", "r"))
+            return address
+        asset_holder_url = self.asset_url[self.url_identifier].format(asset_id=asset_id)
+        res = requests.get(asset_holder_url, headers=self.project_headers)
+        if res.status_code == 200:
+            asset = res.json()
+            json.dump(asset, open(f"cache/main_{asset_id}.json", "w"))
+            return asset
+        print(f"asset Request Failed {asset_id} {res}")
+        return None
+
+    def get_asset_addresses(self, asset_id):
         if self.use_cache and os.path.isfile(f"cache/{asset_id}.json"):
             address = json.load(open(f"cache/{asset_id}.json", "r"))
             return address
-        asset_holder_url = self.assets_url[self.url_identifier].format(
+        asset_holder_url = self.asset_address_url[self.url_identifier].format(
             asset_id=asset_id
         )
         addresses = []
@@ -93,11 +110,16 @@ class TopHolders:
             else:
                 raise Exception(f"Unable to get assets : {str(res)}")
 
-    def query_assets(self):
+    def query_assets(self, eligible=None):
         print("Total Assets: ", len(self.all_assets))
         for asset in tqdm.tqdm(self.all_assets):
             asset_id = asset["asset"]
-            addresses = self.get_asset(asset_id)
+            quantity = asset["quantity"]
+            if quantity == 0:
+                continue
+            if eligible != None and not eligible(self.get_asset(asset_id)):
+                continue
+            addresses = self.get_asset_addresses(asset_id)
             if len(addresses) > 0 and type(addresses) == list:
                 for address in tqdm.tqdm(addresses):
                     holder = address["address"]
@@ -105,8 +127,11 @@ class TopHolders:
                     data = self.get_stake_address(holder)
                     if data:
                         unt_holder = data["stake_address"]
+                        if not unt_holder:
+                            unt_holder = holder
                         self.c[unt_holder] += holding_quantity
                         self.stake_to_payment_address[str(unt_holder)].append(holder)
+                        self.assets_held[str(unt_holder)].append(asset_id)
                     else:
                         print(f"Cannot find the address: {holder}")
 
@@ -116,8 +141,13 @@ class TopHolders:
     def get_all_holders(self):
         holders = []
         for value, count in self.c.most_common():
-            # print(value, count)
-            holders.append({"stake_address": value, "holding_count": count})
+            holders.append(
+                {
+                    "stake_address": value,
+                    "holding_count": count,
+                    "assets_held": self.assets_held[value],
+                }
+            )
         return holders
 
     def get_payment_address(self, stake_address):
