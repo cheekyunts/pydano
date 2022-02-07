@@ -126,7 +126,7 @@ if args.only_naked:
 
 df = pd.DataFrame(holders)
 df.to_csv(f"top_holders_{holders_file_suffix}.csv")
-df.to_pickle("top_holders_{holders_file_suffix}.pkl")
+df.to_pickle(f"top_holders_{holders_file_suffix}.pkl")
 if args.exclude_address:
     exclude_addresses = json.load(open(args.exclude_address, "r"))
     df = df[~df.stake_address.isin(exclude_addresses)]
@@ -154,7 +154,11 @@ if args.token_name:
     for i in addresses:
         i["token_name"] = args.token_name
 
-json.dump(addresses, open("airdrop_pydano_transaction.json", "w"), indent=4)
+json.dump(
+    addresses,
+    open(f"airdrop_pydano_transaction_{holders_file_suffix}.json", "w"),
+    indent=4,
+)
 
 print(f"Do airdrop to:", addresses)
 print("Holders found", len(holders))
