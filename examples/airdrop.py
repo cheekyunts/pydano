@@ -61,6 +61,12 @@ parser.add_argument(
     default=None,
 )
 
+parser.add_argument(
+    "--store_metadata",
+    help="Stores 1 policy-id's metadata to this file (overwrites the file), (only gives metadata for last policy",
+    type=str,
+    default=None,
+)
 args = parser.parse_args()
 
 logging.getLogger().setLevel(args.log_level)
@@ -110,6 +116,10 @@ for policy_id in args.policy_id:
 if len(args.policy_id) > 1:
     top_holders.c = functools.reduce(lambda a, b: a & b, holders)
 holders = top_holders.get_all_holders()
+
+if args.store_metadata:
+    all_metadata = top_holders.get_assets_metadata()
+    json.dump(all_metadata, open(args.store_metadata, "w"), indent=4)
 
 if args.only_naked:
     holders_file_suffix += "_" + "only_naked" + "_"

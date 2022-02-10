@@ -138,6 +138,13 @@ class TopHolders:
             else:
                 print("No address returned", asset, addresses)
 
+    def get_assets_metadata(self):
+        all_assets = []
+        for asset in tqdm.tqdm(self.all_assets):
+            asset_id = asset["asset"]
+            all_assets.append(self.get_asset(asset_id))
+        return all_assets
+
     def get_all_holders(self):
         holders = []
         for value, count in self.c.most_common():
