@@ -108,16 +108,17 @@ class TransactionConfig:
             # It is mandatory to have one ADA transaction
             # So add min_utxo ada to each output tx
             if "lovelace" in out_asset_counter:
-                quantity = out_asset_counter["lovelace"]
+                trans_lovelace = out_asset_counter["lovelace"]
                 del out_asset_counter["lovelace"]
             else:
-                quantity = self.min_utxo
+                trans_lovelace = 0
             # Deduct the fee from out_transaction which is supposed to pay fees
             if out_address == self.fee_payer_address:
-                quantity -= self.fees
+                trans_lovelace = min(0, trans_lovelace - self.fees)
                 available_lovelace -= self.fees
                 fees_paid = True
-            tx_out_config = "+" + str(quantity)
+            tx_out_lovlace_config = "+" + str(trans_lovelace)
+            tx_out_config = ""
             available_lovelace -= quantity
             for remanining_asset in out_asset_counter.items():
                 name = remanining_asset[0]
@@ -130,9 +131,13 @@ class TransactionConfig:
                         f"Trying to spend asset {name}, which is not available in {remanining_asset}, {out_assets}"
                     )
                 tx_out_config += "+" + str(quantity) + " " + str(name)
+            # calculate min utxo and update trans_lovelace based on that
+            # min_network = minmin_lovelace.transaction_out(tx_out_lovlace_config + tx_out_config)
+            # trans_lovelace = max(min_network, trans_lovelace)
+            # tx_out_lovlace_config = "+" + str(trans_lovelace)
                 if name not in self.mints:
                     available_tokens[name] -= quantity
-            command_args.append(out_address + tx_out_config)
+            command_args.append(out_address + tx_out_lovlace_config + tx_out_config)
 
         # This is to return non-ada assets back to change_address, as they are not
         # accounted in current `transaction build` and `cardano-cli` complains about
