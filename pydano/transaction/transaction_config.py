@@ -3,7 +3,7 @@ import logging
 from collections import defaultdict, Counter
 
 from pydano.query.utxo import UTXOs
-
+from pydano.transaction.transaction_min_utxo import CalculateMinUTXOTransaction
 
 class TransactionConfig:
 
@@ -114,12 +114,14 @@ class TransactionConfig:
                 trans_lovelace = 0
             # Deduct the fee from out_transaction which is supposed to pay fees
             if out_address == self.fee_payer_address:
-                trans_lovelace = min(0, trans_lovelace - self.fees)
+                if trans_lovelace < self.fees:
+                    raise ValueError(f"Fee payer {out_address} doesn't have enough lovelace to pay for fees, available: {trans_lovelace}, fees: {self.fees}")
+                trans_lovelace -= self.fees
                 available_lovelace -= self.fees
                 fees_paid = True
-            tx_out_lovlace_config = "+" + str(trans_lovelace)
+            tx_out_lovlace_config = out_address + "+" + str(trans_lovelace)
             tx_out_config = ""
-            available_lovelace -= quantity
+            #available_lovelace -= quantity
             for remanining_asset in out_asset_counter.items():
                 name = remanining_asset[0]
                 quantity = remanining_asset[1]
@@ -131,13 +133,23 @@ class TransactionConfig:
                         f"Trying to spend asset {name}, which is not available in {remanining_asset}, {out_assets}"
                     )
                 tx_out_config += "+" + str(quantity) + " " + str(name)
+                if name not in self.mints:
+                    available_tokens[name] -= quantity
             # calculate min utxo and update trans_lovelace based on that
             # min_network = minmin_lovelace.transaction_out(tx_out_lovlace_config + tx_out_config)
             # trans_lovelace = max(min_network, trans_lovelace)
             # tx_out_lovlace_config = "+" + str(trans_lovelace)
-                if name not in self.mints:
-                    available_tokens[name] -= quantity
-            command_args.append(out_address + tx_out_lovlace_config + tx_out_config)
+            calc_min_utxo = CalculateMinUTXOTransaction(tx_out_lovlace_config + tx_out_config, testnet=self.testnet)
+            min_req_utxo_fees = calc_min_utxo.min_utxo()
+            if min_req_utxo_fees > trans_lovelace and available_lovelace < min_req_utxo_fees:
+                raise ValueError("Don't have enought funds to satify utxo")
+            elif min_req_utxo_fees > trans_lovelace and available_lovelace > (min_req_utxo_fees-trans_lovelace):
+                available_lovelace -= (min_req_utxo_fees - trans_lovelace)
+                trans_lovelace = min_req_utxo_fees
+            else:
+                available_lovelace -= trans_lovelace
+            tx_out_lovlace_config = out_address + "+" + str(trans_lovelace)
+            command_args.append(tx_out_lovlace_config + tx_out_config)
 
         # This is to return non-ada assets back to change_address, as they are not
         # accounted in current `transaction build` and `cardano-cli` complains about

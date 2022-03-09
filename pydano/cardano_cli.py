@@ -21,5 +21,4 @@ class CardanoCli(object):
         try:
             return subprocess.run(command_argv, check=True, capture_output=True)
         except Exception as e:
-            print(e.output, e.stderr)
             raise e
