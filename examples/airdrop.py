@@ -42,6 +42,7 @@ parser.add_argument(
     "--use_cache", help="Use cache instead of running", action="store_true"
 )
 parser.add_argument("--mainnet", help="Use Mainnet", action="store_true")
+parser.add_argument("--only_naked", help="Use Mainnet", action="store_true")
 parser.add_argument(
     "--exclude_address", help="Exclude Addresses", type=str, default=None
 )
@@ -60,9 +61,17 @@ parser.add_argument(
     default=None,
 )
 
+parser.add_argument(
+    "--store_metadata",
+    help="Stores 1 policy-id's metadata to this file (overwrites the file), (only gives metadata for last policy",
+    type=str,
+    default=None,
+)
 args = parser.parse_args()
 
 logging.getLogger().setLevel(args.log_level)
+
+holders_file_suffix = ""
 if not args.total_pages:
     raise Exception("Give total_pages")
 
@@ -70,19 +79,64 @@ if len(args.policy_id) == 0:
     raise ValueError("Need atleast one policy_id to do the airdrop")
 
 holders = []
+
+
+def naked_unts(asset_obj):
+    if not asset_obj:
+        return False
+    if "onchain_metadata" not in asset_obj:
+        return False
+    metadata = asset_obj["onchain_metadata"]
+    # Not a valid metadata
+    if not metadata or "unt" not in metadata:
+        return False
+    forbidden_for_naked = [
+        "face",
+        "eyes",
+        "hat",
+        "accessory",
+        "righty",
+        "lefty",
+        "mouth",
+    ]
+    return not any([i in metadata for i in forbidden_for_naked])
+
+
 for policy_id in args.policy_id:
     top_holders = TopHolders(
         policy_id, args.api_key, args.total_pages, args.use_cache, args.mainnet
     )
     top_holders.gather_assets()
-    top_holders.query_assets()
+    holders_file_suffix += "_" + policy_id + "_"
+    if args.only_naked:
+        top_holders.query_assets(naked_unts)
+    else:
+        top_holders.query_assets()
     holders.append(top_holders.get_holders_counter())
 if len(args.policy_id) > 1:
     top_holders.c = functools.reduce(lambda a, b: a & b, holders)
 holders = top_holders.get_all_holders()
 
+if args.store_metadata:
+    all_metadata = top_holders.get_assets_metadata()
+    json.dump(all_metadata, open(args.store_metadata, "w"), indent=4)
+
+if args.only_naked:
+    holders_file_suffix += "_" + "only_naked" + "_"
+    for holder in holders:
+        held_unts = []
+        print(holder)
+        for asset_id in holder["assets_held"]:
+            asset = top_holders.get_asset(asset_id)
+            unt = asset["onchain_metadata"]["unt"]
+            name = asset["onchain_metadata"]["name"]
+            held_unts.append({"unt": unt, "name": name})
+        holder["held_unts"] = held_unts
+        holder["address"] = top_holders.get_payment_address(holder["stake_address"])[0]
+
 df = pd.DataFrame(holders)
-df.to_csv("top_holders.csv")
+df.to_csv(f"top_holders_{holders_file_suffix}.csv")
+df.to_pickle("top_holders_{holders_file_suffix}.pkl")
 if args.exclude_address:
     exclude_addresses = json.load(open(args.exclude_address, "r"))
     df = df[~df.stake_address.isin(exclude_addresses)]

@@ -135,6 +135,8 @@ class TransactionConfig:
                 tx_out_config += "+" + str(quantity) + " " + str(name)
                 if name not in self.mints:
                     available_tokens[name] -= quantity
+                    if available_tokens[name] == 0
+                        del available_tokens[name]
             # calculate min utxo and update trans_lovelace based on that
             # min_network = minmin_lovelace.transaction_out(tx_out_lovlace_config + tx_out_config)
             # trans_lovelace = max(min_network, trans_lovelace)
