@@ -141,7 +141,7 @@ class TransactionConfig:
             # tx_out_lovlace_config = "+" + str(trans_lovelace)
             calc_min_utxo = CalculateMinUTXOTransaction(tx_out_lovlace_config + tx_out_config, testnet=self.testnet)
             min_req_utxo_fees = calc_min_utxo.min_utxo()
-            if min_req_utxo_fees > trans_lovelace and available_lovelace < min_req_utxo_fees:
+            if min_req_utxo_fees > trans_lovelace and available_lovelace + trans_lovelace < min_req_utxo_fees:
                 raise ValueError("Don't have enought funds to satify utxo")
             elif min_req_utxo_fees > trans_lovelace and available_lovelace > (min_req_utxo_fees-trans_lovelace):
                 available_lovelace -= (min_req_utxo_fees - trans_lovelace)
@@ -158,11 +158,13 @@ class TransactionConfig:
             pending_lovlace = available_lovelace
             if not fees_paid:
                 pending_lovlace -= self.fees
-            if pending_lovlace < self.min_change_utxo:
-                raise ValueError("Not enough money for returning the change")
             command_args.append("--tx-out")
             leftover_out_config = "+" + str(pending_lovlace)
             for key, value in available_tokens.items():
                 leftover_out_config += "+" + str(value) + " " + str(key)
+            calc_min_utxo_left = CalculateMinUTXOTransaction(self.change_address + leftover_out_config, testnet=self.testnet)
+            min_req_utxo_fees_left = calc_min_utxo_left.min_utxo()
+            if pending_lovlace < min_req_utxo_fees_left:
+                raise ValueError("Not enough money for returning the change")
             command_args.append(self.change_address + leftover_out_config)
         return command_args
