@@ -266,7 +266,7 @@ def main():
         exit(0)
     elif args.empty_wallet:
         empty_wallet = EmptyWallet(
-            args.in_address,
+            args.input_address,
             args.empty_wallet,
             args.min_utxo,
             args.min_change_utxo,
