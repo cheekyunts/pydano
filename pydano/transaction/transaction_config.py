@@ -132,6 +132,8 @@ class TransactionConfig:
                 tx_out_config += "+" + str(quantity) + " " + str(name)
                 if name not in self.mints:
                     available_tokens[name] -= quantity
+                    if available_tokens[name] == 0:
+                        del available_tokens[name]
             command_args.append(out_address + tx_out_config)
 
         # This is to return non-ada assets back to change_address, as they are not
