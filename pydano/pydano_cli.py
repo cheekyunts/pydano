@@ -224,7 +224,8 @@ def main():
             address = payee["address"]
             token_name = payee["token_name"]
             quantity = payee["quantity"]
-            tc.add_tx_out(address, token_name, quantity)
+            fee_payer = payee.get("fee_payer", False)
+            tc.add_tx_out(address, token_name, quantity, fee_payer)
         print("Building Transaction")
         bt = BuildRawTransaction(tc, testnet=not args.mainnet)
         bt.run_raw_transaction()
