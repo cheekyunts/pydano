@@ -6,7 +6,7 @@ import uuid
 from pydano.transaction.transaction_config import TransactionConfig
 from pydano.transaction.policy_transaction import PolicyIDTransaction
 from pydano.cardano_temp import tempdir
-
+from pydano.utils import hexstr
 
 class MintingConfig(TransactionConfig):
 
@@ -40,7 +40,7 @@ class MintingConfig(TransactionConfig):
             metadata = self.all_metadata_content[token_name]
             # assert metadata["name"] == token_name
             self.minting_metadata.append(metadata)
-        mint_token_name = f"{self.policyID}.{token_name}"
+        mint_token_name = f"{self.policyID}.{hexstr(token_name)}"
         out = {"out_address": out_address, "name": mint_token_name, "quantity": 1}
         self.output_txs[out_address].append(out)
         self.mints.append(mint_token_name)
