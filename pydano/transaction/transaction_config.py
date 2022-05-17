@@ -3,7 +3,7 @@ import logging
 from collections import defaultdict, Counter
 
 from pydano.query.utxo import UTXOs
-
+from pydano.transaction.transaction_min_utxo import CalculateMinUTXOTransaction
 
 class TransactionConfig:
 
@@ -108,17 +108,20 @@ class TransactionConfig:
             # It is mandatory to have one ADA transaction
             # So add min_utxo ada to each output tx
             if "lovelace" in out_asset_counter:
-                quantity = out_asset_counter["lovelace"]
+                trans_lovelace = out_asset_counter["lovelace"]
                 del out_asset_counter["lovelace"]
             else:
-                quantity = self.min_utxo
+                trans_lovelace = 0
             # Deduct the fee from out_transaction which is supposed to pay fees
             if out_address == self.fee_payer_address:
-                quantity -= self.fees
+                if trans_lovelace < self.fees:
+                    raise ValueError(f"Fee payer {out_address} doesn't have enough lovelace to pay for fees, available: {trans_lovelace}, fees: {self.fees}")
+                trans_lovelace -= self.fees
                 available_lovelace -= self.fees
                 fees_paid = True
-            tx_out_config = "+" + str(quantity)
-            available_lovelace -= quantity
+            tx_out_lovlace_config = out_address + "+" + str(trans_lovelace)
+            tx_out_config = ""
+            #available_lovelace -= quantity
             for remanining_asset in out_asset_counter.items():
                 name = remanining_asset[0]
                 quantity = remanining_asset[1]
@@ -134,7 +137,21 @@ class TransactionConfig:
                     available_tokens[name] -= quantity
                     if available_tokens[name] == 0:
                         del available_tokens[name]
-            command_args.append(out_address + tx_out_config)
+            # calculate min utxo and update trans_lovelace based on that
+            # min_network = minmin_lovelace.transaction_out(tx_out_lovlace_config + tx_out_config)
+            # trans_lovelace = max(min_network, trans_lovelace)
+            # tx_out_lovlace_config = "+" + str(trans_lovelace)
+            calc_min_utxo = CalculateMinUTXOTransaction(tx_out_lovlace_config + tx_out_config, testnet=self.testnet)
+            min_req_utxo_fees = calc_min_utxo.min_utxo()
+            if min_req_utxo_fees > trans_lovelace and available_lovelace + trans_lovelace < min_req_utxo_fees:
+                raise ValueError("Don't have enought funds to satify utxo")
+            elif min_req_utxo_fees > trans_lovelace and available_lovelace > (min_req_utxo_fees-trans_lovelace):
+                available_lovelace -= (min_req_utxo_fees - trans_lovelace)
+                trans_lovelace = min_req_utxo_fees
+            else:
+                available_lovelace -= trans_lovelace
+            tx_out_lovlace_config = out_address + "+" + str(trans_lovelace)
+            command_args.append(tx_out_lovlace_config + tx_out_config)
 
         # This is to return non-ada assets back to change_address, as they are not
         # accounted in current `transaction build` and `cardano-cli` complains about
@@ -143,11 +160,13 @@ class TransactionConfig:
             pending_lovlace = available_lovelace
             if not fees_paid:
                 pending_lovlace -= self.fees
-            if pending_lovlace < self.min_change_utxo:
-                raise ValueError("Not enough money for returning the change")
             command_args.append("--tx-out")
             leftover_out_config = "+" + str(pending_lovlace)
             for key, value in available_tokens.items():
                 leftover_out_config += "+" + str(value) + " " + str(key)
+            calc_min_utxo_left = CalculateMinUTXOTransaction(self.change_address + leftover_out_config, testnet=self.testnet)
+            min_req_utxo_fees_left = calc_min_utxo_left.min_utxo()
+            if pending_lovlace < min_req_utxo_fees_left:
+                raise ValueError("Not enough money for returning the change")
             command_args.append(self.change_address + leftover_out_config)
         return command_args

@@ -9,7 +9,6 @@ from pydano.query.protocol_param import ProtocolParam
 from pydano.transaction.transaction_config import TransactionConfig
 from pydano.transaction.miniting_config import MintingConfig
 
-
 class Transaction(CardanoCli):
     def __init__(
         self,
@@ -50,13 +49,7 @@ class RawTransaction(Transaction):
         calc_fee = CalculateMinFeeTransaction(
             self.transaction_config, self.transaction_file, testnet=self.testnet
         )
-        fees_command_stdout = calc_fee.run_transaction()
-        min_fees = fees_command_stdout.stdout.split()[0].strip()
-        if type(min_fees) == bytes:
-            min_fees = min_fees.decode()
-        if not min_fees.isnumeric():
-            raise ValueError("Error getting minfees")
-        min_fees = int(min_fees)
+        min_fees = calc_fee.min_fees()
         self.transaction_config.fees = min_fees
         self.run_transaction()
         return self
@@ -170,6 +163,25 @@ class BuildTransaction(Transaction, SignAndSubmit):
         self.prepared_transaction = complete_trans
 
 
+
+class BuildRawTransaction(BuildTransaction, RawTransaction, SignAndSubmit):
+
+    raw = True
+
+    @property
+    def base_command(self):
+        return ["cardano-cli", "transaction", "build-raw", "--alonzo-era"]
+
+
+class MintRawTransaction(BuildTransaction, RawTransaction, SignAndSubmit):
+
+    raw = True
+    minting = True
+
+    @property
+    def base_command(self):
+        return ["cardano-cli", "transaction", "build-raw", "--alonzo-era"]
+
 class CalculateMinFeeTransaction(Transaction):
     def __init__(
         self,
@@ -205,21 +217,13 @@ class CalculateMinFeeTransaction(Transaction):
         command.append(self.protocol_file)
         self.prepared_transaction = command
 
+    def min_fees(self):
+        self.prepare_transaction()
+        fees_command_stdout = self.run_command(self.prepared_transaction)
+        min_fees = fees_command_stdout.stdout.split()[0].strip()
+        if type(min_fees) == bytes:
+            min_fees = min_fees.decode()
+        if not min_fees.isnumeric():
+            raise ValueError("Error getting minfees")
+        return int(min_fees)
 
-class BuildRawTransaction(BuildTransaction, RawTransaction, SignAndSubmit):
-
-    raw = True
-
-    @property
-    def base_command(self):
-        return ["cardano-cli", "transaction", "build-raw", "--alonzo-era"]
-
-
-class MintRawTransaction(BuildTransaction, RawTransaction, SignAndSubmit):
-
-    raw = True
-    minting = True
-
-    @property
-    def base_command(self):
-        return ["cardano-cli", "transaction", "build-raw", "--alonzo-era"]
