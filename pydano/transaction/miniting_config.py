@@ -89,7 +89,21 @@ class MintingConfig(TransactionConfig):
 
 class MintRoyalityConfig(MintingConfig):
 
+     def __init__(
+            self,
+            minting_script_file: str,
+            change_address: str,
+            min_utxo: int,
+            testnet: bool = True,
+            metadata_json_file: str = None,
+            min_change_utxo: int = 1340000,
+            royality_address = None
+        ):
+        super().__init__(minting_script_file, change_address, min_utxo, testnet, metadata_json_file, min_change_utxo)
+        self.royality_address = royality_address
+
     def add_mint(self, out_address: str):
+        self.minting_metadata = ["mint_royality"]
         mint_token_name = f"{self.policyID}"
         out = {"out_address": out_address, "name": mint_token_name, "quantity": 1}
         self.output_txs[out_address].append(out)
@@ -102,7 +116,7 @@ class MintRoyalityConfig(MintingConfig):
         tmp_metadata_file = os.path.join(tempdir.name, f"{str(uuid.uuid4())}.json")
         final_metadata = {
             "777": {
-                "addr": self.change_address,
+                "addr": self.royality_address,
                 "pct": "0.05"
                 }
             }
