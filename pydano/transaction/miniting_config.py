@@ -86,3 +86,28 @@ class MintingConfig(TransactionConfig):
             command_args.append("--invalid-hereafter")
             command_args.append(str(invalid_hereafter_slot))
         return command_args
+
+class MintRoyalityConfig(MintingConfig):
+
+    def add_mint(self, out_address: str):
+        mint_token_name = f"{self.policyID}"
+        out = {"out_address": out_address, "name": mint_token_name, "quantity": 1}
+        self.output_txs[out_address].append(out)
+        self.mints.append(mint_token_name)
+
+    @property
+    def get_metadata_file(self):
+        if not self.minting_metadata:
+            return None
+        tmp_metadata_file = os.path.join(tempdir.name, f"{str(uuid.uuid4())}.json")
+        final_metadata = {
+            "777": {
+                "addr": self.change_address,
+                "pct": "0.05"
+                }
+            }
+        with open(tmp_metadata_file, "w") as f:
+            json.dump(final_metadata, f)
+        return tmp_metadata_file
+
+
