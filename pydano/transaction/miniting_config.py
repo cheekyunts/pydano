@@ -89,7 +89,7 @@ class MintingConfig(TransactionConfig):
 
 class MintRoyalityConfig(MintingConfig):
 
-     def __init__(
+    def __init__(
             self,
             minting_script_file: str,
             change_address: str,
@@ -97,9 +97,9 @@ class MintRoyalityConfig(MintingConfig):
             testnet: bool = True,
             metadata_json_file: str = None,
             min_change_utxo: int = 1340000,
-            royality_address = None
-        ):
-        super().__init__(minting_script_file, change_address, min_utxo, testnet, metadata_json_file, min_change_utxo)
+            royality_address = None):
+        super().__init__(minting_script_file, change_address, min_utxo,
+                         testnet, metadata_json_file, min_change_utxo)
         self.royality_address = royality_address
 
     def add_mint(self, out_address: str):
