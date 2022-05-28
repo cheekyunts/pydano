@@ -117,7 +117,7 @@ class MintRoyalityConfig(MintingConfig):
         final_metadata = {
             "777": {
                 "addr": self.royality_address,
-                "rate": "0.05"
+                "pct": "0.05"
                 }
             }
         with open(tmp_metadata_file, "w") as f:
