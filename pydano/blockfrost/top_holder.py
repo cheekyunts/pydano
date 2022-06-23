@@ -95,6 +95,10 @@ class TopHolders:
     def gather_assets(self):
         for page in range(1, self.total_pages + 1):
             logging.info(f"Requesting Page {page}")
+            if self.use_cache and os.path.isfile(f"cache/page_{self.policy_id}_{page}.json"):
+                assets = json.load(open(f"cache/page_{self.policy_id}_{page}.json", "r"))
+                self.all_assets.extend(assets)
+                continue
             res = requests.get(
                 self.list_assts_url[self.url_identifier].format(
                     policy_id=self.policy_id
@@ -104,6 +108,7 @@ class TopHolders:
             )
             if res.status_code == 200:
                 assets = res.json()
+                json.dump(assets, open(f"cache/page_{self.policy_id}_{page}.json", "w"))
                 if len(assets) == 0:
                     return
                 self.all_assets.extend(assets)
@@ -124,9 +129,9 @@ class TopHolders:
                 for address in tqdm.tqdm(addresses):
                     holder = address["address"]
                     holding_quantity = int(address["quantity"])
-                    data = self.get_stake_address(holder)
-                    if data:
-                        unt_holder = data["stake_address"]
+                    #data = self.get_stake_address(holder)
+                    if holder:
+                        unt_holder = holder#data["stake_address"]
                         if not unt_holder:
                             unt_holder = holder
                         self.c[unt_holder] += holding_quantity
