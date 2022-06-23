@@ -5,6 +5,12 @@ import json
 import tqdm
 from collections import defaultdict, Counter
 from datetime import datetime
+from pycardano import Address, Network
+
+def get_stake_address(address):
+    addr = Address.from_primitive(address.strip())
+    addr2 = Address(staking_part=addr.staking_part, network=Network.MAINNET)
+    return {"stake_address": str(addr2)}
 
 class TopHolders:
     asset_address_url = {
@@ -132,9 +138,9 @@ class TopHolders:
                 for address in tqdm.tqdm(addresses):
                     holder = address["address"]
                     holding_quantity = int(address["quantity"])
-                    #data = self.get_stake_address(holder)
-                    if holder:
-                        unt_holder = holder#data["stake_address"]
+                    data = get_stake_address(holder)
+                    if data:
+                        unt_holder = data["stake_address"]
                         if not unt_holder:
                             unt_holder = holder
                         self.c[unt_holder] += holding_quantity
