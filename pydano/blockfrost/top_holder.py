@@ -4,7 +4,7 @@ import requests
 import json
 import tqdm
 from collections import defaultdict, Counter
-
+from datetime import datetime
 
 class TopHolders:
     asset_address_url = {
@@ -124,7 +124,10 @@ class TopHolders:
                 continue
             if eligible != None and not eligible(self.get_asset(asset_id)):
                 continue
+            tic = datetime.now()
             addresses = self.get_asset_addresses(asset_id)
+            tac = datetime.now()
+            print(tac-tic, "address", asset_id)
             if len(addresses) > 0 and type(addresses) == list:
                 for address in tqdm.tqdm(addresses):
                     holder = address["address"]
