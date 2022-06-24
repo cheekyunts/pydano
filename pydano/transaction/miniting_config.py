@@ -114,9 +114,13 @@ class MintRoyalityConfig(MintingConfig):
         if not self.minting_metadata:
             return None
         tmp_metadata_file = os.path.join(tempdir.name, f"{str(uuid.uuid4())}.json")
+        royality_address = self.royality_address
+        size = 64
+        if len(royality_address) > size:
+            royality_address = [royality_address[i:i+size] for i in range(0,len(royality_address), size)]
         final_metadata = {
             "777": {
-                "addr": self.royality_address,
+                "addr": royality_address,
                 "pct": "0.05"
                 }
             }
