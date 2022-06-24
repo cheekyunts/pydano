@@ -94,6 +94,7 @@ def naked_unts(asset_obj):
         "face",
         "eyes",
         "hat",
+        "head",
         "accessory",
         "righty",
         "lefty",
