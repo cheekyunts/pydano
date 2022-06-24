@@ -6,11 +6,15 @@ import tqdm
 from collections import defaultdict, Counter
 from datetime import datetime
 from pycardano import Address, Network
-
+from pycardano.exception import InvalidAddressInputException
 def get_stake_address(address):
     addr = Address.from_primitive(address.strip())
-    addr2 = Address(staking_part=addr.staking_part, network=Network.MAINNET)
-    return {"stake_address": str(addr2)}
+    try:
+        addr2 = Address(staking_part=addr.staking_part, network=Network.MAINNET)
+        return {"stake_address": str(addr2)}
+    except InvalidAddressInputException:
+        # Return address if stake address can't be found
+        return {"stake_address": address}
 
 class TopHolders:
     asset_address_url = {
