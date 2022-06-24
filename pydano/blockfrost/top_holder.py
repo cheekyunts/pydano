@@ -4,7 +4,13 @@ import requests
 import json
 import tqdm
 from collections import defaultdict, Counter
+from datetime import datetime
+from pycardano import Address, Network
 
+def get_stake_address(address):
+    addr = Address.from_primitive(address.strip())
+    addr2 = Address(staking_part=addr.staking_part, network=Network.MAINNET)
+    return {"stake_address": str(addr2)}
 
 class TopHolders:
     asset_address_url = {
@@ -95,6 +101,10 @@ class TopHolders:
     def gather_assets(self):
         for page in range(1, self.total_pages + 1):
             logging.info(f"Requesting Page {page}")
+            if self.use_cache and os.path.isfile(f"cache/page_{self.policy_id}_{page}.json"):
+                assets = json.load(open(f"cache/page_{self.policy_id}_{page}.json", "r"))
+                self.all_assets.extend(assets)
+                continue
             res = requests.get(
                 self.list_assts_url[self.url_identifier].format(
                     policy_id=self.policy_id
@@ -104,6 +114,7 @@ class TopHolders:
             )
             if res.status_code == 200:
                 assets = res.json()
+                json.dump(assets, open(f"cache/page_{self.policy_id}_{page}.json", "w"))
                 if len(assets) == 0:
                     return
                 self.all_assets.extend(assets)
@@ -119,12 +130,15 @@ class TopHolders:
                 continue
             if eligible != None and not eligible(self.get_asset(asset_id)):
                 continue
+            tic = datetime.now()
             addresses = self.get_asset_addresses(asset_id)
+            tac = datetime.now()
+            print(tac-tic, "address", asset_id)
             if len(addresses) > 0 and type(addresses) == list:
                 for address in tqdm.tqdm(addresses):
                     holder = address["address"]
                     holding_quantity = int(address["quantity"])
-                    data = self.get_stake_address(holder)
+                    data = get_stake_address(holder)
                     if data:
                         unt_holder = data["stake_address"]
                         if not unt_holder:
