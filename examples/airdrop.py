@@ -137,7 +137,7 @@ if args.only_naked:
 
 df = pd.DataFrame(holders)
 df.to_csv(f"top_holders_{holders_file_suffix}.csv")
-df.to_pickle("top_holders_{holders_file_suffix}.pkl")
+df.to_pickle(f"top_holders_{holders_file_suffix}.pkl")
 if args.exclude_address:
     exclude_addresses = json.load(open(args.exclude_address, "r"))
     df = df[~df.stake_address.isin(exclude_addresses)]
