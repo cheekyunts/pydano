@@ -53,7 +53,7 @@ class MintingConfig(TransactionConfig):
         final_metadata = {
             "721": {
                 f"{self.policyID}": {
-                    mint_token["asset_name"]: mint_token
+                    mint_token.pop("asset_name"): mint_token
                     for mint_token in self.minting_metadata
                 }
             }
