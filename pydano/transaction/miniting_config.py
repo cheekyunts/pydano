@@ -3,6 +3,8 @@ import json
 import tempfile
 import uuid
 
+from copy import deepcopy
+
 from pydano.transaction.transaction_config import TransactionConfig
 from pydano.transaction.policy_transaction import PolicyIDTransaction
 from pydano.cardano_temp import tempdir
@@ -50,11 +52,13 @@ class MintingConfig(TransactionConfig):
         if not self.minting_metadata:
             return None
         tmp_metadata_file = os.path.join(tempdir.name, f"{str(uuid.uuid4())}.json")
+
+        tmp_minting_metadata = deepcopy(self.minting_metadata)
         final_metadata = {
             "721": {
                 f"{self.policyID}": {
                     mint_token.pop("asset_name"): mint_token
-                    for mint_token in self.minting_metadata
+                    for mint_token in tmp_minting_metadata
                 }
             }
         }
